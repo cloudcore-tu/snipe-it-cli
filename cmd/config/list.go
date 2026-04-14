@@ -19,7 +19,7 @@ func newListCmd() *cobra.Command {
 				return err
 			}
 			if fc == nil || len(fc.Instances) == 0 {
-				fmt.Println("No instances configured. Run 'snipeit config init' to get started.")
+				fmt.Println("No instances configured. Run 'snip config init' to get started.")
 				return nil
 			}
 

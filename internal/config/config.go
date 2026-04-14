@@ -79,7 +79,7 @@ func Load(profile string) (*Config, error) {
 		if name != "" {
 			inst, ok := fc.Instances[name]
 			if !ok {
-				return nil, fmt.Errorf("instance %q not found in config file (check with snipeit config list)", name)
+				return nil, fmt.Errorf("instance %q not found in config file (check with snip config list)", name)
 			}
 			cfg.URL = inst.URL
 			cfg.Token = inst.Token

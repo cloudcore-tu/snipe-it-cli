@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- コマンド名を `snipe` から `snipeit`（Snipe-IT のハイフンなし複合語）に変更
+- コマンド名を `snipe` から `snip`（snipe の先頭4文字、タイプしやすい短縮形）に変更
 
 ### Added
 - プロジェクト初期セットアップ
