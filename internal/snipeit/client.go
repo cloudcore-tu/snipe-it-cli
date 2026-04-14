@@ -14,8 +14,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 )
@@ -269,6 +272,76 @@ func (c *Client) PostByPath(ctx context.Context, urlPath string, data []byte) ([
 		return nil, newAPIError(status, body)
 	}
 	return extractPayload(body)
+}
+
+// DeleteByPath は DELETE /api/v1/{urlPath} で任意のパスを削除する。
+// account/personal-access-tokens/{id} 等の非 CRUD DELETE に使用する。
+func (c *Client) DeleteByPath(ctx context.Context, urlPath string) error {
+	slog.Info("deleting by path", "path", urlPath)
+	body, status, err := c.doRequest(ctx, http.MethodDelete, c.apiURL(urlPath), nil)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusOK && status != http.StatusNoContent {
+		return newAPIError(status, body)
+	}
+	return nil
+}
+
+// Upload は multipart/form-data で POST /api/v1/{urlPath} にファイルをアップロードする。
+// Snipe-IT のインポート API（POST /api/v1/imports）に使用する。
+// extraFields は追加フォームフィールド（例: {"import_type": "hardware"}）。
+func (c *Client) Upload(ctx context.Context, urlPath, fieldName, filePath string, extraFields map[string]string) ([]byte, error) {
+	slog.Info("uploading file", "path", urlPath, "file", filePath)
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer f.Close() //nolint:errcheck
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+
+	// ファイルフィールドを追加
+	part, err := mw.CreateFormFile(fieldName, filepath.Base(filePath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create form file: %w", err)
+	}
+	if _, err := io.Copy(part, f); err != nil {
+		return nil, fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	// 追加フィールドを書き込む
+	for k, v := range extraFields {
+		if err := mw.WriteField(k, v); err != nil {
+			return nil, fmt.Errorf("failed to write field %s: %w", k, err)
+		}
+	}
+	mw.Close() //nolint:errcheck
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL(urlPath), &buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, newAPIError(resp.StatusCode, respBody)
+	}
+	return extractPayload(respBody)
 }
 
 // PostAction は POST /api/v1/{path}/{id}/{action} を呼ぶ。

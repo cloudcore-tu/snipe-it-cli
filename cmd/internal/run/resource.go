@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/cloudcore-tu/snipe-it-cli/internal/snipeit"
 	"github.com/spf13/cobra"
@@ -544,4 +545,54 @@ func RunPostByPath(ctx context.Context, o *BaseOptions, urlPath string, data []b
 		return err
 	}
 	return printer.Print(result)
+}
+
+// RunDeleteByPath は初期化済みの BaseOptions を使って DELETE /api/v1/{urlPath} を実行する。
+// account/personal-access-tokens/{id} 等の非 CRUD DELETE に使用する。
+func RunDeleteByPath(ctx context.Context, o *BaseOptions, urlPath string, id int) error {
+	if err := o.Client.DeleteByPath(ctx, urlPath); err != nil {
+		return FormatAPIError(err)
+	}
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(map[string]any{"deleted": true, "id": id})
+}
+
+// RunUpload は multipart/form-data でファイルをアップロードし結果を出力する。
+// Snipe-IT のインポート API に使用する。
+func RunUpload(ctx context.Context, o *BaseOptions, urlPath, fieldName, filePath string, extraFields map[string]string) error {
+	raw, err := o.Client.Upload(ctx, urlPath, fieldName, filePath, extraFields)
+	if err != nil {
+		return FormatAPIError(err)
+	}
+	var result any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return err
+	}
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(result)
+}
+
+// RunSaveBinary は GET /api/v1/{urlPath} のレスポンスをバイナリとして保存する。
+// outputFile が空の場合は標準出力に書き出す（パイプ利用を想定）。
+// JSON パースを行わないため、PDF 等のバイナリレスポンスに使用する。
+func RunSaveBinary(ctx context.Context, o *BaseOptions, urlPath, outputFile string) error {
+	raw, err := o.Client.GetByPath(ctx, urlPath)
+	if err != nil {
+		return FormatAPIError(err)
+	}
+	if outputFile != "" {
+		if err := os.WriteFile(outputFile, raw, 0o600); err != nil {
+			return fmt.Errorf("failed to write to %s: %w", outputFile, err)
+		}
+		fmt.Fprintf(o.Stdout(), "Saved %d bytes to %s\n", len(raw), outputFile)
+		return nil
+	}
+	_, err = o.Stdout().Write(raw)
+	return err
 }

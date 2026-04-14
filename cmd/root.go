@@ -18,12 +18,16 @@ import (
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/fields"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/fieldsets"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/groups"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/imports"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/labels"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/licenses"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/locations"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/maintenances"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/manufacturers"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/models"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/notes"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/reports"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/settings"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/statuslabels"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/suppliers"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/users"
@@ -82,6 +86,10 @@ func init() {
 	rootCmd.AddCommand(groups.NewCmd())
 	rootCmd.AddCommand(reports.NewCmd())
 	rootCmd.AddCommand(account.NewCmd())
+	rootCmd.AddCommand(labels.NewCmd())
+	rootCmd.AddCommand(imports.NewCmd())
+	rootCmd.AddCommand(settings.NewCmd())
+	rootCmd.AddCommand(notes.NewCmd())
 }
 
 var rootCmd = &cobra.Command{

@@ -36,6 +36,18 @@ func NewCmd() *cobra.Command {
 	// POST /api/v1/account/request/{id}/cancel — リクエストをキャンセルする
 	cmd.AddCommand(buildCancelRequestCmd())
 
+	// GET /api/v1/account/eulas — 同意済み EULA 一覧
+	cmd.AddCommand(run.BuildPathReadCmd("eulas", "同意済み EULA 一覧を取得する", "account/eulas"))
+
+	// GET /api/v1/account/personal-access-tokens — API トークン一覧
+	cmd.AddCommand(run.BuildPathReadCmd("tokens", "自分の API トークン一覧を取得する", "account/personal-access-tokens"))
+
+	// POST /api/v1/account/personal-access-tokens — API トークン作成
+	cmd.AddCommand(buildTokenCreateCmd())
+
+	// DELETE /api/v1/account/personal-access-tokens/{id} — API トークン削除
+	cmd.AddCommand(buildTokenDeleteCmd())
+
 	return cmd
 }
 
@@ -74,6 +86,47 @@ func buildCancelRequestCmd() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Asset ID to cancel request for (required)")
 	cmd.MarkFlagRequired("id") //nolint:errcheck
+	return cmd
+}
+
+func buildTokenCreateCmd() *cobra.Command {
+	o := &run.BaseOptions{}
+	var data string
+	cmd := &cobra.Command{
+		Use:   "token-create",
+		Short: "API トークンを作成する",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Complete(cmd); err != nil {
+				return err
+			}
+			if _, err := run.UnmarshalJSON(data); err != nil {
+				return err
+			}
+			return run.RunPostByPath(cmd.Context(), o,
+				"account/personal-access-tokens", []byte(data))
+		},
+	}
+	cmd.Flags().StringVar(&data, "data", "", `JSON data, e.g. {"name":"my-token"} (required)`)
+	cmd.MarkFlagRequired("data") //nolint:errcheck
+	return cmd
+}
+
+func buildTokenDeleteCmd() *cobra.Command {
+	o := &run.BaseOptions{}
+	var tokenID int
+	cmd := &cobra.Command{
+		Use:   "token-delete",
+		Short: "API トークンを削除する",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Complete(cmd); err != nil {
+				return err
+			}
+			return run.RunDeleteByPath(cmd.Context(), o,
+				"account/personal-access-tokens/"+itoa(tokenID), tokenID)
+		},
+	}
+	cmd.Flags().IntVar(&tokenID, "token-id", 0, "Token ID to delete (required)")
+	cmd.MarkFlagRequired("token-id") //nolint:errcheck
 	return cmd
 }
 
