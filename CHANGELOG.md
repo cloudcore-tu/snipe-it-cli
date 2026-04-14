@@ -1,16 +1,13 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+このファイルはすべての変更履歴を記録します。
+フォーマットは [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に準拠し、
+バージョン管理は [Semantic Versioning](https://semver.org/) に従います。
 
 ## [Unreleased]
 
-### Changed
-- コマンド名を `snipe` から `snip`（snipe の先頭4文字、タイプしやすい短縮形）に変更
-
 ### Added
+
 - プロジェクト初期セットアップ
 - Snipe-IT REST API（/api/v1）への直接 HTTP クライアント実装
 - ResourceDef による汎用 CRUD フレームワーク（list/get/create/update/delete）
@@ -19,3 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 出力フォーマット: table（デフォルト）、json、yaml、custom-columns、jsonpath
 - 設定管理: config init/add/list コマンド、XDG 準拠、複数インスタンス対応
 - 設定の優先順位: CLI フラグ > 環境変数（SNIPEIT_URL/TOKEN/TIMEOUT/OUTPUT）> 設定ファイル
+
+### Changed
+
+- コマンド名を `snip`（snipe の先頭4文字）に決定
