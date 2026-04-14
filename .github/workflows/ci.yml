@@ -35,7 +35,11 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
-      - run: mise exec -- go test ./...
+      - name: Run tests with coverage
+        run: mise exec -- go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Show coverage summary
+        run: mise exec -- go tool cover -func=coverage.out | tail -1
 
   vuln:
     name: Vulnerability Scan
