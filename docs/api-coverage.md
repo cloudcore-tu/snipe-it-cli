@@ -1,38 +1,93 @@
 # API カバレッジ
 
 Snipe-IT REST API v1 のコマンドカバレッジ一覧。
+ルート定義は `routes/api.php`（github.com/snipe/snipe-it）を参照。
 
-凡例: ✅ 実装済み / ⬜ 未実装
+凡例: ✅ 実装済み / ⬜ 対象外（管理画面操作 / PDF / ファイルアップロード）
 
-## リソース別カバレッジ
+## CRUD リソース
 
-| CLI コマンド | API パス | list | get | create | update | delete | 備考 |
+| CLI コマンド | API パス | list | get | create | update | delete | 追加操作 |
 |---|---|---|---|---|---|---|---|
-| `assets` | `/api/v1/hardware` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout/checkin/audit アクション付き |
+| `assets` | `/api/v1/hardware` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout, checkin, audit, restore |
 | `users` | `/api/v1/users` | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| `licenses` | `/api/v1/licenses` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout/checkin アクション付き |
-| `accessories` | `/api/v1/accessories` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout/checkin アクション付き |
-| `components` | `/api/v1/components` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout/checkin アクション付き |
-| `consumables` | `/api/v1/consumables` | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| `licenses` | `/api/v1/licenses` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout, checkin |
+| `accessories` | `/api/v1/accessories` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout, checkin |
+| `components` | `/api/v1/components` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout, checkin |
+| `consumables` | `/api/v1/consumables` | ✅ | ✅ | ✅ | ✅ | ✅ | checkout |
 | `categories` | `/api/v1/categories` | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | `companies` | `/api/v1/companies` | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | `locations` | `/api/v1/locations` | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| `manufacturers` | `/api/v1/manufacturers` | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| `models` | `/api/v1/models` | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| `manufacturers` | `/api/v1/manufacturers` | ✅ | ✅ | ✅ | ✅ | ✅ | restore |
+| `models` | `/api/v1/models` | ✅ | ✅ | ✅ | ✅ | ✅ | restore |
 | `departments` | `/api/v1/departments` | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | `statuslabels` | `/api/v1/statuslabels` | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | `suppliers` | `/api/v1/suppliers` | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | `fieldsets` | `/api/v1/fieldsets` | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | `maintenances` | `/api/v1/maintenances` | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| `fields` | `/api/v1/fields` | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| `depreciations` | `/api/v1/depreciations` | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| `groups` | `/api/v1/groups` | ✅ | ✅ | ✅ | ✅ | ✅ | |
 
-## 未実装エンドポイント
+## サブリソース
 
-| エンドポイント | 説明 |
+| CLI コマンド | API エンドポイント |
 |---|---|
-| `GET /api/v1/account/requestable/hardware` | リクエスト可能な資産一覧 |
-| `GET /api/v1/hardware/bytag/{tag}` | 資産タグで資産取得 |
-| `GET /api/v1/hardware/byserial/{serial}` | シリアル番号で資産取得 |
-| `GET /api/v1/users/{id}/assets` | ユーザーの割り当て資産一覧 |
-| `GET /api/v1/users/{id}/licenses` | ユーザーの割り当てライセンス一覧 |
-| `GET /api/v1/fields` | カスタムフィールド一覧 |
-| `GET /api/v1/reports/activity` | アクティビティレポート |
+| `assets history --id N` | `GET /api/v1/hardware/{N}/history` |
+| `assets licenses --id N` | `GET /api/v1/hardware/{N}/licenses` |
+| `assets assigned-assets --id N` | `GET /api/v1/hardware/{N}/assigned/assets` |
+| `assets assigned-accessories --id N` | `GET /api/v1/hardware/{N}/assigned/accessories` |
+| `assets assigned-components --id N` | `GET /api/v1/hardware/{N}/assigned/components` |
+| `assets bytag --tag TAG` | `GET /api/v1/hardware/bytag/{tag}` |
+| `assets byserial --serial SERIAL` | `GET /api/v1/hardware/byserial/{serial}` |
+| `users assets --id N` | `GET /api/v1/users/{N}/assets` |
+| `users licenses --id N` | `GET /api/v1/users/{N}/licenses` |
+| `users accessories --id N` | `GET /api/v1/users/{N}/accessories` |
+| `users consumables --id N` | `GET /api/v1/users/{N}/consumables` |
+| `licenses history --id N` | `GET /api/v1/licenses/{N}/history` |
+| `licenses seats list --id N` | `GET /api/v1/licenses/{N}/seats` |
+| `licenses seats get --id N --seat-id M` | `GET /api/v1/licenses/{N}/seats/{M}` |
+| `licenses seats update --id N --seat-id M --data JSON` | `PATCH /api/v1/licenses/{N}/seats/{M}` |
+| `accessories history --id N` | `GET /api/v1/accessories/{N}/history` |
+| `accessories checkedout --id N` | `GET /api/v1/accessories/{N}/checkedout` |
+| `components history --id N` | `GET /api/v1/components/{N}/history` |
+| `components assets --id N` | `GET /api/v1/components/{N}/assets` |
+| `consumables history --id N` | `GET /api/v1/consumables/{N}/history` |
+| `consumables users --id N` | `GET /api/v1/consumables/{N}/users` |
+| `locations users --id N` | `GET /api/v1/locations/{N}/users` |
+| `locations assets --id N` | `GET /api/v1/locations/{N}/assets` |
+| `locations assigned-assets --id N` | `GET /api/v1/locations/{N}/assigned/assets` |
+| `locations assigned-accessories --id N` | `GET /api/v1/locations/{N}/assigned/accessories` |
+| `locations history --id N` | `GET /api/v1/locations/{N}/history` |
+| `statuslabels assetlist --id N` | `GET /api/v1/statuslabels/{N}/assetlist` |
+| `statuslabels counts-by-label` | `GET /api/v1/statuslabels/assets/name` |
+| `statuslabels counts-by-type` | `GET /api/v1/statuslabels/assets/type` |
+| `fieldsets fields --id N` | `GET /api/v1/fieldsets/{N}/fields` |
+| `maintenances history --id N` | `GET /api/v1/maintenances/{N}/history` |
+| `models history --id N` | `GET /api/v1/models/{N}/history` |
+
+## レポート・アカウント
+
+| CLI コマンド | API エンドポイント |
+|---|---|
+| `reports activity` | `GET /api/v1/reports/activity` |
+| `reports depreciation` | `GET /api/v1/reports/depreciation` |
+| `account requestable` | `GET /api/v1/account/requestable/hardware` |
+| `account requests` | `GET /api/v1/account/requests` |
+| `account request --id N` | `POST /api/v1/account/request/{N}` |
+| `account cancel-request --id N` | `POST /api/v1/account/request/{N}/cancel` |
+
+## 対象外エンドポイント
+
+意図的に実装しないエンドポイント。
+
+| エンドポイント | 理由 |
+|---|---|
+| `POST /api/v1/fields/{id}/associate` | フィールドセット管理は Web UI が適切 |
+| `POST /api/v1/fields/{id}/disassociate` | 同上 |
+| `POST /api/v1/fields/fieldsets/{id}/order` | 同上 |
+| `GET/POST /api/v1/labels` | PDF ラベル生成（バイナリ出力、CLI 不向き） |
+| `CRUD /api/v1/imports` + `process` | ファイルアップロード（multipart/form-data、CLI 別途検討） |
+| `GET/POST /api/v1/settings/*` | 管理者設定（Web UI 専用） |
+| `GET /api/v1/account/eulas` | EULA 確認（Web UI 専用） |
+| `POST /api/v1/account/personal-access-tokens` | トークン管理（Web UI 推奨） |

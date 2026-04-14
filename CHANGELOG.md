@@ -6,6 +6,27 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-14
+
+### Added
+
+- Snipe-IT API 全エンドポイント対応（routes/api.php ベース）
+- サブリソース参照コマンド群（history/checkedout/seats/bytag/byserial 等、30+ コマンド）
+- 新リソース: fields（カスタムフィールド）、depreciations（償却設定）、groups（権限グループ）
+- reports コマンド: activity/depreciation レポート
+- account コマンド: requestable/requests/request/cancel-request
+- assets: restore/bytag/byserial/assigned-* コマンド追加
+- licenses: seats サブコマンドグループ（list/get/update）
+- consumables: checkout アクション追加（routes/api.php にあり未実装だったため）
+- manufacturers/models: restore アクション追加
+- API クライアントに GetSub/GetByPath/PatchByPath/PostByPath メソッド追加
+- BuildSubReadCmd/BuildPathReadCmd/RunGetByPath/RunPatchByPath/RunPostByPath ヘルパー追加
+
+### Fixed
+
+- delete コマンドの出力を PrintFlags 経由に統一（他動詞と形式不整合の解消）
+- list コマンドの --offset 負値バリデーション追加
+
 ## [0.1.0] - 2026-04-14
 
 ### Added
