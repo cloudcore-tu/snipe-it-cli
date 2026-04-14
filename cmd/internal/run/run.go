@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 // BaseOptions は全コマンドの Options 構造体が埋め込む共通フィールド。
 // kubectl の Options パターン（Complete → Validate → Run）を採用する。
 type BaseOptions struct {
@@ -113,4 +112,3 @@ func FormatAPIError(err error) error {
 	}
 	return fmt.Errorf("%w", err)
 }
-

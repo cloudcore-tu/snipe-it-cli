@@ -9,8 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/cloudcore-tu/snipe-it-cli/internal/snipeit"
 	"github.com/spf13/cobra"
@@ -19,10 +17,10 @@ import (
 // ActionDef は list/get/create/update/delete 以外の追加アクションを定義する。
 // checkout/checkin 等のリソース固有操作に使用する。
 type ActionDef struct {
-	Use       string
-	Short     string
+	Use   string
+	Short string
 	// Action は API アクションパス（"checkout", "checkin" 等）
-	Action    string
+	Action string
 	// NeedsData は --data フラグを受け付けるか
 	NeedsData bool
 }
@@ -390,23 +388,4 @@ func (o *genericActionOptions) runAction(ctx context.Context) error {
 		return err
 	}
 	return printer.Print(result)
-}
-
-// ParseIDs は "--id 1,2,3" や "--id 1 --id 2" 形式の ID 文字列リストを int スライスに変換する。
-func parseIDsFromStrings(raw []string) ([]int, error) {
-	var ids []int
-	for _, s := range raw {
-		for _, part := range strings.Split(s, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" {
-				continue
-			}
-			n, err := strconv.Atoi(part)
-			if err != nil || n <= 0 {
-				return nil, fmt.Errorf("invalid ID value: %q (must be a positive integer)", part)
-			}
-			ids = append(ids, n)
-		}
-	}
-	return ids, nil
 }

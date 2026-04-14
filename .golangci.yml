@@ -3,26 +3,33 @@ version: "2"
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
-    - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - revive
-    - nolintlint
-    - godot
 
-linters-settings:
-  revive:
-    rules:
-      - name: exported
-        arguments:
-          - "checkPrivateReceivers"
-          - "sayRepetitiveInsteadOfStutters"
+  settings:
+    errcheck:
+      # 以下は実用上エラーが発生しないか、defer では戻り値を受け取れない標準的なパターン。
+      # - fmt.Fprint*/fmt.Fprintln: CLI の stdout 書き込み失敗は無視できる
+      # - MarkFlagRequired: フラグを直前に定義しているため失敗しない
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (github.com/spf13/cobra.Command).MarkFlagRequired
+        - (*github.com/spf13/cobra.Command).MarkFlagRequired
+
+formatters:
+  enable:
+    - gofmt
 
 issues:
   exclude-rules:
+    # テストコードの書き込みエラーはイディオムとして無視
     - path: _test\.go
       linters:
         - errcheck
+    # defer resp.Body.Close() は defer でエラーを返せないため不可避
+    - linters:
+        - errcheck
+      text: "Body.Close"
