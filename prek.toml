@@ -1,0 +1,73 @@
+[[repos]]
+repo = "local"
+
+# main/master への直接コミットをブロック
+[[repos.hooks]]
+id = "protect-main-branch"
+name = "Protect main/master branch"
+entry = "bash -c 'BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo \"unknown\"); if [[ \"$BRANCH\" == \"main\" ]] || [[ \"$BRANCH\" == \"master\" ]]; then echo \"ERROR: Direct commits to $BRANCH branch are not allowed. Please create a feature branch.\"; exit 1; fi'"
+language = "system"
+pass_filenames = false
+always_run = true
+
+# Go ファイルのフォーマット
+[[repos.hooks]]
+id = "gofmt"
+name = "gofmt"
+entry = "mise exec -- gofmt -l -w"
+language = "system"
+files = "\\.go$"
+
+# Go lint（golangci-lint）
+[[repos.hooks]]
+id = "golangci-lint"
+name = "golangci-lint"
+entry = "mise exec -- golangci-lint run ./..."
+language = "system"
+files = "\\.go$"
+pass_filenames = false
+
+# Go テスト
+[[repos.hooks]]
+id = "go-test"
+name = "go test"
+entry = "mise exec -- go test ./..."
+language = "system"
+files = "\\.go$"
+pass_filenames = false
+
+# シークレットスキャン
+[[repos.hooks]]
+id = "gitleaks"
+name = "gitleaks"
+entry = "mise exec -- gitleaks protect --staged --verbose"
+language = "system"
+pass_filenames = false
+
+# Go 脆弱性スキャン
+[[repos.hooks]]
+id = "govulncheck"
+name = "govulncheck"
+entry = "mise exec -- govulncheck ./..."
+language = "system"
+files = "\\.go$"
+pass_filenames = false
+
+# Markdown lint（変更された .md ファイルをそのまま引数として渡す）
+# .claude/ 配下はツール設定ファイルのため除外する
+[[repos.hooks]]
+id = "markdownlint"
+name = "markdownlint"
+entry = "mise exec -- markdownlint-cli2"
+language = "system"
+files = "\\.md$"
+exclude = "^\\.claude/"
+
+# GitHub Actions ワークフローの lint
+[[repos.hooks]]
+id = "actionlint"
+name = "actionlint"
+entry = "mise exec -- actionlint"
+language = "system"
+files = "^\\.github/workflows/.*\\.(yaml|yml)$"
+pass_filenames = false

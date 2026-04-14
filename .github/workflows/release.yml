@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v4
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      # CHANGELOG.md からタグに対応するセクションを抽出してリリースノートとして渡す
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk "/^## \[${version}\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md \
+            | sed '/^[[:space:]]*$/d' \
+            > /tmp/release_notes.md
+          echo "Release notes for v${version}:"
+          cat /tmp/release_notes.md
+
+      # linux/arm64 の libc ビルド用クロスコンパイラ
+      - name: Install cross-compilers
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: latest
+          args: release --clean --release-notes /tmp/release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  formula-update:
+    name: Update Homebrew formula
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: homebrew-tap
+
+      - name: Clone homebrew-tap
+        env:
+          TAP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/cloudcore-tu/homebrew-tap.git" /tmp/homebrew-tap
+
+      - name: Download checksums.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${GITHUB_REF_NAME}" \
+            --repo cloudcore-tu/snipe-it-cli \
+            --pattern checksums.txt \
+            --output /tmp/checksums.txt
+
+      - name: Update formula
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          python3 /tmp/homebrew-tap/scripts/update-formula.py "${version}" /tmp/checksums.txt
+
+      - name: Commit and push
+        env:
+          TAP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cd /tmp/homebrew-tap
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add Formula/snipe-it-cli.rb
+          git commit -m "chore: snipe-it-cli formula を v${version} に更新"
+          git push

@@ -1,0 +1,85 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  # CGO 無効（静的バイナリ）- 全プラットフォーム向け
+  - id: static
+    binary: snip
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/cloudcore-tu/snipe-it-cli/cmd.version={{.Version}}
+
+  # CGO 有効（libc 動的リンク）- Linux 向け
+  - id: libc
+    binary: snip
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/cloudcore-tu/snipe-it-cli/cmd.version={{.Version}}
+    overrides:
+      # arm64 クロスコンパイル時は aarch64-linux-gnu-gcc を使用
+      - goos: linux
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
+          - CC=aarch64-linux-gnu-gcc
+
+archives:
+  # static ビルド: linux/darwin は tar.gz、windows は zip
+  - id: static-archive
+    ids:
+      - static
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  # libc ビルド: Linux 専用。生バイナリをそのまま添付
+  - id: libc-archive
+    ids:
+      - libc
+    formats:
+      - binary
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}_libc"
+
+nfpms:
+  - id: static-nfpm
+    ids:
+      - static
+    package_name: snipe-it-cli
+    vendor: cloudcore-tu
+    homepage: https://github.com/cloudcore-tu/snipe-it-cli
+    maintainer: cloudcore-tu <cloudcore-tu@users.noreply.github.com>
+    description: CLI tool for Snipe-IT asset management
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true
+
+# リリースノートはワークフロー側で CHANGELOG.md から抽出し --release-notes フラグで渡す。
+# Homebrew formula の更新は release.yml の formula-update ジョブで行う（GitHub.get_release() 使用）。
+# goreleaser の brews セクションは private repo の release asset URL を生成できないため使用しない。
