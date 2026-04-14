@@ -26,18 +26,18 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "snipe",
+	Use:   "sit",
 	Short: "Snipe-IT CLI — IT 資産管理ツール",
-	Long: `snipe は Snipe-IT（IT 資産管理 OSS）を操作する CLI ツールです。
+	Long: `sit は Snipe-IT（IT 資産管理 OSS）を操作する CLI ツールです。
 
 Usage:
-  snipe [global flags] {resource} {verb} [flags]
+  sit [global flags] {resource} {verb} [flags]
 
 Examples:
-  snipe assets list --filter status_id=2
-  snipe assets get --id 123
-  snipe assets create --data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
-  snipe users list`,
+  sit assets list --filter status_id=2
+  sit assets get --id 123
+  sit assets create --data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
+  sit users list`,
 	SilenceUsage: true,
 }
 

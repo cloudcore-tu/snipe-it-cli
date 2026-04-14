@@ -26,7 +26,7 @@ func newInitCmd() *cobra.Command {
 				return err
 			}
 			if _, err := os.Stat(path); err == nil {
-				return fmt.Errorf("config file already exists: %s (use 'snipe config add' to add an instance)", path)
+				return fmt.Errorf("config file already exists: %s (use 'sit config add' to add an instance)", path)
 			}
 
 			fc := &config.FileConfig{

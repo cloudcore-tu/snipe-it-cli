@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- コマンド名を `snipe` から `sit`（Snipe-IT の頭字語）に変更
+
 ### Added
 - プロジェクト初期セットアップ
 - Snipe-IT REST API（/api/v1）への直接 HTTP クライアント実装
