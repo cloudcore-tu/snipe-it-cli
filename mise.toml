@@ -1,0 +1,9 @@
+[tools]
+go = "1.26.2"
+golangci-lint = "latest"
+goreleaser = "latest"
+gitleaks = "latest"
+actionlint = "latest"
+prek = "latest"
+"go:golang.org/x/vuln/cmd/govulncheck" = "latest"
+markdownlint-cli2 = "latest"
