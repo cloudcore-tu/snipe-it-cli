@@ -86,6 +86,9 @@ func (r *ResourceDef) buildListCmd() *cobra.Command {
 			if o.limit < 1 || o.limit > 1000 {
 				return fmt.Errorf("--limit must be between 1 and 1000")
 			}
+			if o.offset < 0 {
+				return fmt.Errorf("--offset must be 0 or greater")
+			}
 			return o.runList(cmd.Context())
 		},
 	}
@@ -322,8 +325,11 @@ func (o *genericDeleteOptions) runDelete(ctx context.Context) error {
 	if err := o.Client.Delete(ctx, o.apiPath, o.id); err != nil {
 		return FormatAPIError(err)
 	}
-	fmt.Fprintf(o.Stdout(), "{\"deleted\":true,\"id\":%d}\n", o.id)
-	return nil
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(map[string]any{"deleted": true, "id": o.id})
 }
 
 // --- action (checkout/checkin 等) ---
@@ -383,6 +389,156 @@ func (o *genericActionOptions) runAction(ctx context.Context) error {
 		return err
 	}
 
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(result)
+}
+
+// --- サブリソース取得ヘルパー ---
+// BuildSubReadCmd と BuildPathReadCmd は ResourceDef を拡張せず、
+// 各リソースパッケージから明示的に呼ばれるヘルパー関数として提供する。
+
+// subReadOptions は "GET /api/v1/{parentPath}/{id}/{subPath}" の共通 Options。
+type subReadOptions struct {
+	BaseOptions
+	id         int
+	parentPath string
+	subPath    string
+}
+
+func (o *subReadOptions) run(ctx context.Context) error {
+	raw, err := o.Client.GetSub(ctx, o.parentPath, o.id, o.subPath)
+	if err != nil {
+		return FormatAPIError(err)
+	}
+	var result any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return err
+	}
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(result)
+}
+
+// BuildSubReadCmd は "snip {resource} {use} --id N" コマンドを生成する。
+// GET /api/v1/{parentAPIPath}/{N}/{subPath} を呼び出す。
+// 例: BuildSubReadCmd("history", "資産の操作履歴", "hardware", "history")
+//
+//	→ snip assets history --id 42
+func BuildSubReadCmd(use, short, parentAPIPath, subPath string) *cobra.Command {
+	o := &subReadOptions{parentPath: parentAPIPath, subPath: subPath}
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Complete(cmd); err != nil {
+				return err
+			}
+			if o.id <= 0 {
+				return fmt.Errorf("--id must be a positive integer")
+			}
+			return o.run(cmd.Context())
+		},
+	}
+	cmd.Flags().IntVar(&o.id, "id", 0, "Resource ID (required)")
+	cmd.MarkFlagRequired("id") //nolint:errcheck
+	return cmd
+}
+
+// pathReadOptions は "GET /api/v1/{urlPath}" の共通 Options（ID なし）。
+type pathReadOptions struct {
+	BaseOptions
+	urlPath string
+}
+
+func (o *pathReadOptions) run(ctx context.Context) error {
+	raw, err := o.Client.GetByPath(ctx, o.urlPath)
+	if err != nil {
+		return FormatAPIError(err)
+	}
+	var result any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return err
+	}
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(result)
+}
+
+// RunGetByPath は初期化済みの BaseOptions を使って GET /api/v1/{urlPath} を実行し結果を出力する。
+// 各パッケージで文字列フラグからパスを組み立てるコマンドに使用する（bytag, byserial 等）。
+func RunGetByPath(ctx context.Context, o *BaseOptions, urlPath string) error {
+	raw, err := o.Client.GetByPath(ctx, urlPath)
+	if err != nil {
+		return FormatAPIError(err)
+	}
+	var result any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return err
+	}
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(result)
+}
+
+// BuildPathReadCmd は固定 API パスに GET する引数なしコマンドを生成する。
+// 例: BuildPathReadCmd("activity", "アクティビティレポート", "reports/activity")
+//
+//	→ snip reports activity
+func BuildPathReadCmd(use, short, apiPath string) *cobra.Command {
+	o := &pathReadOptions{urlPath: apiPath}
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Complete(cmd); err != nil {
+				return err
+			}
+			return o.run(cmd.Context())
+		},
+	}
+}
+
+// RunPatchByPath は初期化済みの BaseOptions を使って PATCH /api/v1/{urlPath} を実行し結果を出力する。
+// ライセンスシート等の入れ子 PATCH エンドポイントに使用する。
+func RunPatchByPath(ctx context.Context, o *BaseOptions, urlPath, data string) error {
+	if _, err := UnmarshalJSON(data); err != nil {
+		return err
+	}
+	raw, err := o.Client.PatchByPath(ctx, urlPath, []byte(data))
+	if err != nil {
+		return FormatAPIError(err)
+	}
+	var result any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return err
+	}
+	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
+	if err != nil {
+		return err
+	}
+	return printer.Print(result)
+}
+
+// RunPostByPath は初期化済みの BaseOptions を使って POST /api/v1/{urlPath} を実行し結果を出力する。
+// account/request 等の非 CRUD POST エンドポイントに使用する。
+func RunPostByPath(ctx context.Context, o *BaseOptions, urlPath string, data []byte) error {
+	raw, err := o.Client.PostByPath(ctx, urlPath, data)
+	if err != nil {
+		return FormatAPIError(err)
+	}
+	var result any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return err
+	}
 	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
 	if err != nil {
 		return err

@@ -250,8 +250,8 @@ func TestRunDelete_WithYes_CallsAPIAndOutputs(t *testing.T) {
 	}
 
 	require.NoError(t, o.runDelete(context.Background()))
-	assert.Contains(t, buf.String(), `"deleted":true`)
-	assert.Contains(t, buf.String(), `"id":5`)
+	assert.Contains(t, buf.String(), `"deleted": true`)
+	assert.Contains(t, buf.String(), `"id": 5`)
 }
 
 // --- runAction (checkout/checkin) ---

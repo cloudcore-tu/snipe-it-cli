@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/accessories"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/account"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/assets"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/categories"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/companies"
@@ -13,12 +14,16 @@ import (
 	configcmd "github.com/cloudcore-tu/snipe-it-cli/cmd/config"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/consumables"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/departments"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/depreciations"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/fields"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/fieldsets"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/groups"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/licenses"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/locations"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/maintenances"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/manufacturers"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/models"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/reports"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/statuslabels"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/suppliers"
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/users"
@@ -72,6 +77,11 @@ func init() {
 	rootCmd.AddCommand(components.NewCmd())
 	rootCmd.AddCommand(consumables.NewCmd())
 	rootCmd.AddCommand(maintenances.NewCmd())
+	rootCmd.AddCommand(fields.NewCmd())
+	rootCmd.AddCommand(depreciations.NewCmd())
+	rootCmd.AddCommand(groups.NewCmd())
+	rootCmd.AddCommand(reports.NewCmd())
+	rootCmd.AddCommand(account.NewCmd())
 }
 
 var rootCmd = &cobra.Command{

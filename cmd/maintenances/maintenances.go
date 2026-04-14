@@ -14,5 +14,10 @@ func NewCmd() *cobra.Command {
 		DocsURL: "https://snipe-it.readme.io/reference/maintenances",
 		APIPath: "maintenances",
 	}
-	return def.BuildCmd()
+	cmd := def.BuildCmd()
+
+	// サブリソース: GET /api/v1/maintenances/{id}/history
+	cmd.AddCommand(run.BuildSubReadCmd("history", "メンテナンス記録の操作履歴を取得する", "maintenances", "history"))
+
+	return cmd
 }

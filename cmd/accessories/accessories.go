@@ -28,5 +28,11 @@ func NewCmd() *cobra.Command {
 			},
 		},
 	}
-	return def.BuildCmd()
+	cmd := def.BuildCmd()
+
+	// サブリソース: GET /api/v1/accessories/{id}/{sub}
+	cmd.AddCommand(run.BuildSubReadCmd("history", "アクセサリーの操作履歴を取得する", "accessories", "history"))
+	cmd.AddCommand(run.BuildSubReadCmd("checkedout", "現在 checkout 中のアクセサリーを取得する", "accessories", "checkedout"))
+
+	return cmd
 }

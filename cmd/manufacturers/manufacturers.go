@@ -13,6 +13,14 @@ func NewCmd() *cobra.Command {
 		Short:   "メーカーを管理する",
 		DocsURL: "https://snipe-it.readme.io/reference/manufacturers",
 		APIPath: "manufacturers",
+		ActionFns: []run.ActionDef{
+			{
+				Use:       "restore",
+				Short:     "削除済みメーカーを復元する",
+				Action:    "restore",
+				NeedsData: false,
+			},
+		},
 	}
 	return def.BuildCmd()
 }

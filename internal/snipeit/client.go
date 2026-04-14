@@ -209,6 +209,68 @@ func (c *Client) Delete(ctx context.Context, path string, id int) error {
 	return nil
 }
 
+// GetSub は GET /api/v1/{path}/{id}/{subPath} でサブリソースを取得する。
+// 例: hardware/42/history, users/5/assets
+func (c *Client) GetSub(ctx context.Context, path string, id int, subPath string) ([]byte, error) {
+	slog.Info("getting sub-resource", "path", path, "id", id, "sub", subPath)
+	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id) + "/" + subPath
+	body, status, err := c.doRequest(ctx, http.MethodGet, urlStr, nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, newAPIError(status, body)
+	}
+	return body, nil
+}
+
+// GetByPath は GET /api/v1/{urlPath} で任意のパスを取得する。
+// bytag/byserial/reports/account 等の非 CRUD パスに使用する。
+func (c *Client) GetByPath(ctx context.Context, urlPath string) ([]byte, error) {
+	slog.Info("getting by path", "path", urlPath)
+	urlStr := c.apiURL(urlPath)
+	body, status, err := c.doRequest(ctx, http.MethodGet, urlStr, nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, newAPIError(status, body)
+	}
+	return body, nil
+}
+
+// PatchByPath は PATCH /api/v1/{urlPath} で任意のパスを更新する。
+// ライセンスシート更新など、CRUD 汎用メソッドが対応しない入れ子パスに使用する。
+func (c *Client) PatchByPath(ctx context.Context, urlPath string, data []byte) ([]byte, error) {
+	slog.Info("patching by path", "path", urlPath)
+	body, status, err := c.doRequest(ctx, http.MethodPatch, c.apiURL(urlPath), bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, newAPIError(status, body)
+	}
+	return extractPayload(body)
+}
+
+// PostByPath は POST /api/v1/{urlPath} で任意のパスにアクションを送信する。
+// account/request 等の非 CRUD POST に使用する。data が nil の場合は空ボディで送信する。
+func (c *Client) PostByPath(ctx context.Context, urlPath string, data []byte) ([]byte, error) {
+	slog.Info("posting by path", "path", urlPath)
+	var bodyReader io.Reader
+	if data != nil {
+		bodyReader = bytes.NewReader(data)
+	}
+	body, status, err := c.doRequest(ctx, http.MethodPost, c.apiURL(urlPath), bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK && status != http.StatusCreated {
+		return nil, newAPIError(status, body)
+	}
+	return extractPayload(body)
+}
+
 // PostAction は POST /api/v1/{path}/{id}/{action} を呼ぶ。
 // checkout/checkin 等のリソース固有操作に使用する。
 // data が nil の場合は空ボディで送信する。

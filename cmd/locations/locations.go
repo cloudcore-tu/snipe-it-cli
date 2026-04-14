@@ -14,5 +14,14 @@ func NewCmd() *cobra.Command {
 		DocsURL: "https://snipe-it.readme.io/reference/locations",
 		APIPath: "locations",
 	}
-	return def.BuildCmd()
+	cmd := def.BuildCmd()
+
+	// サブリソース: GET /api/v1/locations/{id}/{sub}
+	cmd.AddCommand(run.BuildSubReadCmd("users", "ロケーションに所属するユーザーを取得する", "locations", "users"))
+	cmd.AddCommand(run.BuildSubReadCmd("assets", "ロケーションの資産一覧を取得する", "locations", "assets"))
+	cmd.AddCommand(run.BuildSubReadCmd("assigned-assets", "ロケーションに割り当てられた資産を取得する", "locations", "assigned/assets"))
+	cmd.AddCommand(run.BuildSubReadCmd("assigned-accessories", "ロケーションに割り当てられたアクセサリーを取得する", "locations", "assigned/accessories"))
+	cmd.AddCommand(run.BuildSubReadCmd("history", "ロケーションの操作履歴を取得する", "locations", "history"))
+
+	return cmd
 }

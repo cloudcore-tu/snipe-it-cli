@@ -28,5 +28,11 @@ func NewCmd() *cobra.Command {
 			},
 		},
 	}
-	return def.BuildCmd()
+	cmd := def.BuildCmd()
+
+	// サブリソース: GET /api/v1/components/{id}/{sub}
+	cmd.AddCommand(run.BuildSubReadCmd("history", "コンポーネントの操作履歴を取得する", "components", "history"))
+	cmd.AddCommand(run.BuildSubReadCmd("assets", "コンポーネントが割り当てられた資産を取得する", "components", "assets"))
+
+	return cmd
 }

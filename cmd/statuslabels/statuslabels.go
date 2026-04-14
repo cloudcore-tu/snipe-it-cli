@@ -14,5 +14,14 @@ func NewCmd() *cobra.Command {
 		DocsURL: "https://snipe-it.readme.io/reference/status-labels",
 		APIPath: "statuslabels",
 	}
-	return def.BuildCmd()
+	cmd := def.BuildCmd()
+
+	// サブリソース: GET /api/v1/statuslabels/{id}/assetlist
+	cmd.AddCommand(run.BuildSubReadCmd("assetlist", "このステータスラベルを持つ資産一覧を取得する", "statuslabels", "assetlist"))
+
+	// 集計エンドポイント（ID 不要）
+	cmd.AddCommand(run.BuildPathReadCmd("counts-by-label", "ステータスラベル別の資産数を取得する", "statuslabels/assets/name"))
+	cmd.AddCommand(run.BuildPathReadCmd("counts-by-type", "メタステータス種別別の資産数を取得する", "statuslabels/assets/type"))
+
+	return cmd
 }

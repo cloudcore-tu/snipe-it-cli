@@ -14,5 +14,10 @@ func NewCmd() *cobra.Command {
 		DocsURL: "https://snipe-it.readme.io/reference/fieldsets",
 		APIPath: "fieldsets",
 	}
-	return def.BuildCmd()
+	cmd := def.BuildCmd()
+
+	// サブリソース: GET /api/v1/fieldsets/{id}/fields
+	cmd.AddCommand(run.BuildSubReadCmd("fields", "フィールドセットに含まれるカスタムフィールドを取得する", "fieldsets", "fields"))
+
+	return cmd
 }
