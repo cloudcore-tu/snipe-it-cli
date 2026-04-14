@@ -44,9 +44,9 @@ output: table
 
 | コマンド | 説明 |
 | --- | --- |
-| `sit config init [--name NAME] --url URL --token TOKEN` | 初期設定ファイルを生成 |
-| `sit config add NAME --url URL --token TOKEN` | インスタンスを追加・更新 |
-| `sit config list` | 登録済みインスタンスを一覧表示（* がアクティブ） |
+| `snipeit config init [--name NAME] --url URL --token TOKEN` | 初期設定ファイルを生成 |
+| `snipeit config add NAME --url URL --token TOKEN` | インスタンスを追加・更新 |
+| `snipeit config list` | 登録済みインスタンスを一覧表示（* がアクティブ） |
 
 ### 設定値の優先順位
 
@@ -68,7 +68,7 @@ output: table
 
 ## 代替案の却下理由
 
-**`sit config use` コマンド（kubectl 方式）**: 設定ファイルをコマンドで書き換える方式は複数ターミナルセッションで危険。AWS CLI 方式（`SNIPE_PROFILE` 環境変数）の方が状態を持たない設計として優れるため却下。
+**`snipeit config use` コマンド（kubectl 方式）**: 設定ファイルをコマンドで書き換える方式は複数ターミナルセッションで危険。AWS CLI 方式（`SNIPE_PROFILE` 環境変数）の方が状態を持たない設計として優れるため却下。
 
 **単一インスタンスのフラット設定**: 後から複数対応を追加すると config 構造の破壊的変更が発生するため却下。
 
