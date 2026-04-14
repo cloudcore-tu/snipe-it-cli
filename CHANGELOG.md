@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-14
+
+### Added
+
+- labels コマンド: list（JSON）+ get（PDF バイナリ → --output-file 保存）
+- imports コマンド: CRUD + create（multipart CSV アップロード）+ process
+- settings コマンド: get/update/login-attempts/backups/backup-download
+- notes コマンド: list/create（--asset-id で資産に紐づくノート）
+- fields コマンド拡張: associate/disassociate/reorder
+- account コマンド拡張: eulas/tokens/token-create/token-delete
+- クライアント追加: DeleteByPath/Upload（multipart）
+- run ヘルパー追加: RunDeleteByPath/RunUpload/RunSaveBinary
+
 ## [0.2.0] - 2026-04-14
 
 ### Added
