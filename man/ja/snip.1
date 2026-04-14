@@ -1,0 +1,159 @@
+.TH SNIP 1 "2026-04-14" "snipe-it-cli" "snipe-it-cli Manual"
+
+.SH 名前
+snip \- Snipe-IT（IT 資産管理）操作 CLI
+
+.SH 書式
+.B snip
+[\fIグローバルフラグ\fR] \fIリソース\fR \fI動詞\fR [\fIフラグ\fR]
+
+.SH 説明
+snipe-it-cli は Snipe-IT IT 資産管理ツールの REST API をターミナルから操作するツールです。
+インフラエンジニアの日常運用を第一に設計しており、コーディングエージェントからの利用も想定しています。
+各コマンドの詳細は \fB\-\-help\fR で確認してください。
+
+Snipe-IT v8.x（API v1）対応。
+
+.SH リソース
+.TP
+.B assets
+IT 資産（ハードウェア）。標準 CRUD に加え checkout/checkin/audit をサポート。
+.TP
+.B users
+ユーザー。
+.TP
+.B licenses
+ソフトウェアライセンス。
+.TP
+.B accessories
+アクセサリー。
+.TP
+.B consumables
+消耗品。
+.TP
+.B components
+コンポーネント。
+.TP
+.B categories
+資産カテゴリ。
+.TP
+.B companies
+会社。
+.TP
+.B locations
+ロケーション。
+.TP
+.B manufacturers
+メーカー。
+.TP
+.B models
+機器モデル。
+.TP
+.B departments
+部門。
+.TP
+.B statuslabels
+ステータスラベル。
+.TP
+.B suppliers
+サプライヤー。
+.TP
+.B fieldsets
+カスタムフィールドセット。
+.TP
+.B maintenances
+メンテナンス記録。
+
+.SH 使用例
+.EX
+snip assets list
+snip assets list \-\-filter status_id=2
+snip assets list \-o json
+snip assets get \-\-id 123
+snip assets create \-\-data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
+snip assets update \-\-id 123 \-\-data '{"status_id":3}'
+snip assets delete \-\-id 123 \-\-yes
+snip assets checkout \-\-id 123 \-\-data '{"checkout_to_type":"user","assigned_user":1}'
+snip assets checkin \-\-id 123
+snip users list
+snip licenses list \-\-limit 100 \-\-offset 0
+.EE
+
+.SH グローバルフラグ
+.TP
+.B \-\-url string
+Snipe-IT の URL（環境変数: \fBSNIPEIT_URL\fR）
+.TP
+.B \-\-token string
+API トークン（環境変数: \fBSNIPEIT_TOKEN\fR）
+.TP
+.B \-\-timeout int
+タイムアウト秒数・デフォルト 30（環境変数: \fBSNIPEIT_TIMEOUT\fR）
+.TP
+.B \-o, \-\-output string
+出力形式: table（デフォルト）/ json / yaml / custom-columns=... / jsonpath=...（環境変数: \fBSNIPEIT_OUTPUT\fR）
+.TP
+.B \-\-profile string
+使用するインスタンス名（未指定時は SNIPE_PROFILE 環境変数、次いで設定ファイルの current を使う）
+.TP
+.B \-\-debug
+デバッグログを有効にする
+
+.SH 設定
+設定ファイル: \fB~/.config/snipe-it-cli/config.yaml\fR（XDG: \fB$XDG_CONFIG_HOME/snipe-it-cli/config.yaml\fR）
+.PP
+.EX
+current: prod
+instances:
+  prod:
+    url: https://snip.example.com
+    token: your-api-token
+  staging:
+    url: https://staging.example.com
+    token: stg-api-token
+timeout: 30     # オプション（デフォルト: 30）
+output: table   # オプション（デフォルト: table）
+.EE
+.PP
+設定管理コマンド:
+.EX
+snip config init \-\-url https://snip.example.com \-\-token YOUR_TOKEN
+snip config add staging \-\-url https://staging.example.com \-\-token STG_TOKEN
+snip config list
+.EE
+.PP
+インスタンスの切り替え（AWS CLI 方式）:
+.EX
+export SNIPE_PROFILE=staging   # セッション単位
+snip \-\-profile staging ...    # コマンド単位
+.EE
+.PP
+優先順位: \fBCLI フラグ > 環境変数（SNIPEIT_URL 等）> 設定ファイル > デフォルト値\fR
+.br
+プロファイル解決: \fB\-\-profile フラグ > SNIPE_PROFILE 環境変数 > current\fR
+
+.SH シェル補完
+.EX
+snip completion bash        # Bash
+snip completion zsh         # Zsh
+snip completion fish        # Fish
+snip completion powershell  # PowerShell
+.EE
+.PP
+設定例（Bash）:
+.EX
+echo 'source <(snip completion bash)' >> ~/.bashrc
+.EE
+設定例（Zsh）:
+.EX
+echo 'source <(snip completion zsh)' >> ~/.zshrc
+.EE
+設定例（Fish）:
+.EX
+snip completion fish | source
+.EE
+
+.SH 関連項目
+.B snip \-\-help\fR,
+.B snip <resource> \-\-help\fR,
+.B snip <resource> <verb> \-\-help

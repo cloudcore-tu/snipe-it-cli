@@ -1,0 +1,159 @@
+.TH SNIP 1 "2026-04-14" "snipe-it-cli" "snipe-it-cli Manual"
+
+.SH NAME
+snip \- CLI for Snipe-IT (IT asset management)
+
+.SH SYNOPSIS
+.B snip
+[\fIglobal-flags\fR] \fIresource\fR \fIverb\fR [\fIflags\fR]
+
+.SH DESCRIPTION
+snipe-it-cli is a command-line tool for operating Snipe-IT IT asset management via the REST API.
+Designed primarily for day-to-day infrastructure operations, with support for coding agents.
+Use \fB\-\-help\fR on any command for details.
+
+Compatible with Snipe-IT v8.x (API v1).
+
+.SH RESOURCES
+.TP
+.B assets
+IT assets (hardware). Supports checkout/checkin/audit in addition to standard CRUD.
+.TP
+.B users
+Users.
+.TP
+.B licenses
+Software licenses.
+.TP
+.B accessories
+Accessories.
+.TP
+.B consumables
+Consumables.
+.TP
+.B components
+Components.
+.TP
+.B categories
+Asset categories.
+.TP
+.B companies
+Companies.
+.TP
+.B locations
+Locations.
+.TP
+.B manufacturers
+Manufacturers.
+.TP
+.B models
+Device models.
+.TP
+.B departments
+Departments.
+.TP
+.B statuslabels
+Status labels.
+.TP
+.B suppliers
+Suppliers.
+.TP
+.B fieldsets
+Custom fieldsets.
+.TP
+.B maintenances
+Maintenance records.
+
+.SH EXAMPLES
+.EX
+snip assets list
+snip assets list \-\-filter status_id=2
+snip assets list \-o json
+snip assets get \-\-id 123
+snip assets create \-\-data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
+snip assets update \-\-id 123 \-\-data '{"status_id":3}'
+snip assets delete \-\-id 123 \-\-yes
+snip assets checkout \-\-id 123 \-\-data '{"checkout_to_type":"user","assigned_user":1}'
+snip assets checkin \-\-id 123
+snip users list
+snip licenses list \-\-limit 100 \-\-offset 0
+.EE
+
+.SH GLOBAL FLAGS
+.TP
+.B \-\-url string
+Snipe-IT URL (env: \fBSNIPEIT_URL\fR)
+.TP
+.B \-\-token string
+API token (env: \fBSNIPEIT_TOKEN\fR)
+.TP
+.B \-\-timeout int
+Timeout in seconds, default 30 (env: \fBSNIPEIT_TIMEOUT\fR)
+.TP
+.B \-o, \-\-output string
+Output format: table (default) / json / yaml / custom-columns=... / jsonpath=... (env: \fBSNIPEIT_OUTPUT\fR)
+.TP
+.B \-\-profile string
+Instance name to use (falls back to SNIPE_PROFILE env, then config file current)
+.TP
+.B \-\-debug
+Enable debug logging
+
+.SH CONFIGURATION
+Config file: \fB~/.config/snipe-it-cli/config.yaml\fR (XDG: \fB$XDG_CONFIG_HOME/snipe-it-cli/config.yaml\fR)
+.PP
+.EX
+current: prod
+instances:
+  prod:
+    url: https://snip.example.com
+    token: your-api-token
+  staging:
+    url: https://staging.example.com
+    token: stg-api-token
+timeout: 30     # optional (default: 30)
+output: table   # optional (default: table)
+.EE
+.PP
+Config management:
+.EX
+snip config init \-\-url https://snip.example.com \-\-token YOUR_TOKEN
+snip config add staging \-\-url https://staging.example.com \-\-token STG_TOKEN
+snip config list
+.EE
+.PP
+Instance switching (AWS CLI style):
+.EX
+export SNIPE_PROFILE=staging   # per session
+snip \-\-profile staging ...    # per command
+.EE
+.PP
+Precedence: \fBCLI flags > env vars (SNIPEIT_URL, etc.) > config file > defaults\fR
+.br
+Profile resolution: \fB\-\-profile flag > SNIPE_PROFILE env > current\fR
+
+.SH SHELL COMPLETION
+.EX
+snip completion bash        # Bash
+snip completion zsh         # Zsh
+snip completion fish        # Fish
+snip completion powershell  # PowerShell
+.EE
+.PP
+Example (Bash):
+.EX
+echo 'source <(snip completion bash)' >> ~/.bashrc
+.EE
+Example (Zsh):
+.EX
+echo 'source <(snip completion zsh)' >> ~/.zshrc
+.EE
+Example (Fish):
+.EX
+snip completion fish | source
+.EE
+
+.SH SEE ALSO
+.B snip \-\-help\fR,
+.B snip <resource> \-\-help\fR,
+.B snip <resource> <verb> \-\-help

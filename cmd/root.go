@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"log/slog"
 	"os"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/accessories"
@@ -25,9 +26,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var debug bool
+
 var rootCmd = &cobra.Command{
-	Use:   "snip",
-	Short: "Snipe-IT CLI — IT 資産管理ツール",
+	Use:          "snip",
+	Short:        "Snipe-IT CLI — IT 資産管理ツール",
+	SilenceUsage: true,
+	// SilenceErrors: エラーは Execute() 側で PrintError して表示するため cobra の自動出力を抑制する
+	SilenceErrors: true,
 	Long: `snip は Snipe-IT（IT 資産管理 OSS）を操作する CLI ツールです。
 
 Usage:
@@ -38,7 +44,15 @@ Examples:
   snip assets get --id 123
   snip assets create --data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
   snip users list`,
-	SilenceUsage: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// --debug が指定された場合はログレベルを DEBUG に変更する
+		if debug {
+			slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+				Level: slog.LevelDebug,
+			})))
+		}
+		return nil
+	},
 }
 
 // Execute はルートコマンドを実行する。main.go から呼ばれる。
@@ -51,11 +65,12 @@ func Execute() {
 
 func init() {
 	// グローバルフラグ
-	rootCmd.PersistentFlags().String("url", "", "Snipe-IT URL (override config)")
-	rootCmd.PersistentFlags().String("token", "", "API token (override config)")
-	rootCmd.PersistentFlags().String("profile", "", "Config profile to use (override SNIPE_PROFILE)")
-	rootCmd.PersistentFlags().Int("timeout", 0, "Request timeout in seconds (override config)")
-	rootCmd.PersistentFlags().StringP("output", "o", "", "Output format: table, json, yaml, custom-columns=..., jsonpath=...")
+	rootCmd.PersistentFlags().String("url", "", "Snipe-IT URL (env: SNIPEIT_URL)")
+	rootCmd.PersistentFlags().String("token", "", "API token (env: SNIPEIT_TOKEN)")
+	rootCmd.PersistentFlags().String("profile", "", "Instance name to use (env: SNIPE_PROFILE)")
+	rootCmd.PersistentFlags().Int("timeout", 0, "Request timeout in seconds (env: SNIPEIT_TIMEOUT)")
+	rootCmd.PersistentFlags().StringP("output", "o", "", "Output format: table, json, yaml, custom-columns=..., jsonpath=... (env: SNIPEIT_OUTPUT)")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
 
 	// サブコマンド登録
 	rootCmd.AddCommand(newVersionCmd())

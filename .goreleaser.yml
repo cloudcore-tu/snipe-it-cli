@@ -42,6 +42,7 @@ builds:
 
 archives:
   # static ビルド: linux/darwin は tar.gz、windows は zip
+  # man ページをアーカイブに同梱し、brew formula から man1.install できるようにする
   - id: static-archive
     ids:
       - static
@@ -51,6 +52,9 @@ archives:
       - goos: windows
         formats: [zip]
     name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - src: man/en/snip.1
+      - src: man/ja/snip.1
 
   # libc ビルド: Linux 専用。生バイナリをそのまま添付
   - id: libc-archive
@@ -73,9 +77,20 @@ nfpms:
       - deb
       - rpm
     bindir: /usr/bin
+    contents:
+      - src: man/en/snip.1
+        dst: /usr/share/man/man1/snip.1
+      - src: man/ja/snip.1
+        dst: /usr/share/man/ja/man1/snip.1
 
 checksum:
   name_template: checksums.txt
+
+# man ページをリリースアセットに追加する
+release:
+  extra_files:
+    - glob: ./man/en/snip.1
+    - glob: ./man/ja/snip.1
 
 changelog:
   disable: true
