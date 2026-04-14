@@ -26,51 +26,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var debug bool
+// logLevel は slog のデフォルトハンドラで使うログレベル変数。
+// --verbose で INFO、--debug で DEBUG に切り替わる。
+// LevelVar はアトミックに変更できるため並行実行時のデータ競合がない。
+var logLevel = new(slog.LevelVar) // デフォルト: INFO
 
-var rootCmd = &cobra.Command{
-	Use:          "snip",
-	Short:        "Snipe-IT CLI — IT 資産管理ツール",
-	SilenceUsage: true,
-	// SilenceErrors: エラーは Execute() 側で PrintError して表示するため cobra の自動出力を抑制する
-	SilenceErrors: true,
-	Long: `snip は Snipe-IT（IT 資産管理 OSS）を操作する CLI ツールです。
-
-Usage:
-  snip [global flags] {resource} {verb} [flags]
-
-Examples:
-  snip assets list --filter status_id=2
-  snip assets get --id 123
-  snip assets create --data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
-  snip users list`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// --debug が指定された場合はログレベルを DEBUG に変更する
-		if debug {
-			slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-				Level: slog.LevelDebug,
-			})))
-		}
-		return nil
-	},
-}
-
-// Execute はルートコマンドを実行する。main.go から呼ばれる。
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		output.PrintError(os.Stderr, err)
-		os.Exit(1)
-	}
-}
+var (
+	verbose bool
+	debug   bool
+)
 
 func init() {
+	// デフォルトを WARN に設定し、通常実行では slog 出力を抑制する。
+	// --verbose で INFO、--debug で DEBUG に切り替える。
+	logLevel.Set(slog.LevelWarn)
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	})))
+
 	// グローバルフラグ
 	rootCmd.PersistentFlags().String("url", "", "Snipe-IT URL (env: SNIPEIT_URL)")
 	rootCmd.PersistentFlags().String("token", "", "API token (env: SNIPEIT_TOKEN)")
 	rootCmd.PersistentFlags().String("profile", "", "Instance name to use (env: SNIPE_PROFILE)")
 	rootCmd.PersistentFlags().Int("timeout", 0, "Request timeout in seconds (env: SNIPEIT_TIMEOUT)")
 	rootCmd.PersistentFlags().StringP("output", "o", "", "Output format: table, json, yaml, custom-columns=..., jsonpath=... (env: SNIPEIT_OUTPUT)")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show operational INFO logs")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Show debug logs (HTTP requests/responses)")
 
 	// サブコマンド登録
 	rootCmd.AddCommand(newVersionCmd())
@@ -91,4 +72,40 @@ func init() {
 	rootCmd.AddCommand(components.NewCmd())
 	rootCmd.AddCommand(consumables.NewCmd())
 	rootCmd.AddCommand(maintenances.NewCmd())
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "snip",
+	Short: "Snipe-IT CLI — IT 資産管理ツール",
+	Long: `snip は Snipe-IT（IT 資産管理 OSS）を操作する CLI ツールです。
+
+Usage:
+  snip [global flags] {resource} {verb} [flags]
+
+Examples:
+  snip assets list --filter status_id=2
+  snip assets get --id 123
+  snip assets create --data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
+  snip users list`,
+	SilenceUsage: true,
+	// SilenceErrors: エラーは Execute() 側で PrintError して表示するため cobra の自動出力を抑制する
+	SilenceErrors: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// フラグの優先順位: --debug > --verbose > デフォルト(WARN)
+		switch {
+		case debug:
+			logLevel.Set(slog.LevelDebug)
+		case verbose:
+			logLevel.Set(slog.LevelInfo)
+		}
+		return nil
+	},
+}
+
+// Execute はルートコマンドを実行する。main.go から呼ばれる。
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		output.PrintError(os.Stderr, err)
+		os.Exit(1)
+	}
 }

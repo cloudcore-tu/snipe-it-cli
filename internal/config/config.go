@@ -8,6 +8,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -121,6 +122,15 @@ func ReadFile() (*FileConfig, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// セキュリティ: 設定ファイルには API トークンが含まれる。
+	// 0600 以外のパーミッションは他のユーザーがトークンを読める可能性があるため警告する。
+	if info, statErr := os.Stat(path); statErr == nil {
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			slog.Warn("config file has insecure permissions; recommend chmod 0600",
+				"path", path, "permissions", fmt.Sprintf("%04o", perm))
+		}
 	}
 
 	var fc FileConfig

@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -31,13 +30,16 @@ func newVersionCmd() *cobra.Command {
 			}
 
 			switch outputFormat {
+			case "text", "":
+				fmt.Fprintf(cmd.OutOrStdout(), "snipe-it-cli %s\n", info.ClientVersion)
+				fmt.Fprintf(cmd.OutOrStdout(), "Snipe-IT API: %s\n", info.SnipeITAPI)
 			case "json":
-				enc := json.NewEncoder(os.Stdout)
+				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetIndent("", "  ")
 				return enc.Encode(info)
 			default:
-				fmt.Printf("snipe-it-cli %s\n", info.ClientVersion)
-				fmt.Printf("Snipe-IT API: %s\n", info.SnipeITAPI)
+				// 不正フォーマットは exit 1（ADR-006 準拠: 引数エラーは非ゼロ終了）
+				return fmt.Errorf("unknown output format: %q (available: text, json)", outputFormat)
 			}
 
 			return nil

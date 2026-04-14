@@ -1,6 +1,6 @@
 .TH SNIP 1 "2026-04-14" "snipe-it-cli" "snipe-it-cli Manual"
 
-.SH 名前
+.SH NAME
 snip \- Snipe-IT（IT 資産管理）操作 CLI
 
 .SH 書式
@@ -64,6 +64,32 @@ IT 資産（ハードウェア）。標準 CRUD に加え checkout/checkin/audit
 .B maintenances
 メンテナンス記録。
 
+.SH 組み込みコマンド
+.TP
+.B version
+snipe-it-cli および Snipe-IT API バージョンを表示する。
+.EX
+snip version
+snip version \-o json
+.EE
+.TP
+.B config
+Snipe-IT インスタンスの設定を管理する。
+.EX
+snip config init \-\-url URL \-\-token TOKEN [\-\-name NAME]
+snip config add NAME \-\-url URL \-\-token TOKEN
+snip config list
+.EE
+.TP
+.B completion
+シェル補完スクリプトを生成する（bash/zsh/fish/powershell）。
+.EX
+snip completion bash
+snip completion zsh
+snip completion fish
+snip completion powershell
+.EE
+
 .SH 使用例
 .EX
 snip assets list
@@ -96,11 +122,17 @@ API トークン（環境変数: \fBSNIPEIT_TOKEN\fR）
 .B \-\-profile string
 使用するインスタンス名（未指定時は SNIPE_PROFILE 環境変数、次いで設定ファイルの current を使う）
 .TP
+.B \-v, \-\-verbose
+操作の INFO ログを表示する（API 呼び出し内容など）
+.TP
 .B \-\-debug
-デバッグログを有効にする
+デバッグログを表示する（HTTP リクエスト/レスポンス。Authorization ヘッダは伏字）
 
 .SH 設定
 設定ファイル: \fB~/.config/snipe-it-cli/config.yaml\fR（XDG: \fB$XDG_CONFIG_HOME/snipe-it-cli/config.yaml\fR）
+.PP
+設定ファイルには API トークンが含まれるため、パーミッションは \fB0600\fR にする必要があります。
+パーミッションが不適切な場合は警告が表示されます。
 .PP
 .EX
 current: prod
@@ -134,23 +166,14 @@ snip \-\-profile staging ...    # コマンド単位
 
 .SH シェル補完
 .EX
-snip completion bash        # Bash
-snip completion zsh         # Zsh
-snip completion fish        # Fish
-snip completion powershell  # PowerShell
-.EE
-.PP
-設定例（Bash）:
-.EX
+# Bash
 echo 'source <(snip completion bash)' >> ~/.bashrc
-.EE
-設定例（Zsh）:
-.EX
+
+# Zsh
 echo 'source <(snip completion zsh)' >> ~/.zshrc
-.EE
-設定例（Fish）:
-.EX
-snip completion fish | source
+
+# Fish
+snip completion fish > ~/.config/fish/completions/snip.fish
 .EE
 
 .SH 関連項目

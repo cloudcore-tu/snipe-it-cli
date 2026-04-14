@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -52,6 +53,9 @@ func NewClient(baseURL, token string, timeoutSec int) (*Client, error) {
 		token:   token,
 		httpClient: &http.Client{
 			Timeout: time.Duration(timeoutSec) * time.Second,
+			// loggingTransport で HTTP リクエスト/レスポンスをデバッグログに記録する。
+			// Authorization ヘッダは transport 層で自動的にマスクされる。
+			Transport: newLoggingTransport(http.DefaultTransport),
 		},
 	}, nil
 }
@@ -118,6 +122,7 @@ type ListParams struct {
 // List は GET /api/v1/{path} でリソース一覧を取得する。
 // レスポンスは {"total": N, "rows": [...]} 形式の生 JSON を返す。
 func (c *Client) List(ctx context.Context, path string, params ListParams) ([]byte, error) {
+	slog.Info("listing resources", "path", path, "limit", params.Limit, "offset", params.Offset)
 	u, err := url.Parse(c.apiURL(path))
 	if err != nil {
 		return nil, err
@@ -149,6 +154,7 @@ func (c *Client) List(ctx context.Context, path string, params ListParams) ([]by
 
 // GetByID は GET /api/v1/{path}/{id} でリソース単体を取得する。
 func (c *Client) GetByID(ctx context.Context, path string, id int) ([]byte, error) {
+	slog.Info("getting resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
 	body, status, err := c.doRequest(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
@@ -163,6 +169,7 @@ func (c *Client) GetByID(ctx context.Context, path string, id int) ([]byte, erro
 // Create は POST /api/v1/{path} でリソースを作成する。
 // Snipe-IT のレスポンスは {"status": "success", "payload": {...}} のため、payload を取り出して返す。
 func (c *Client) Create(ctx context.Context, path string, data []byte) ([]byte, error) {
+	slog.Info("creating resource", "path", path)
 	body, status, err := c.doRequest(ctx, http.MethodPost, c.apiURL(path), bytes.NewReader(data))
 	if err != nil {
 		return nil, err
@@ -176,6 +183,7 @@ func (c *Client) Create(ctx context.Context, path string, data []byte) ([]byte, 
 // Update は PATCH /api/v1/{path}/{id} でリソースを部分更新する。
 // Snipe-IT のレスポンスは {"status": "success", "payload": {...}} のため、payload を取り出して返す。
 func (c *Client) Update(ctx context.Context, path string, id int, data []byte) ([]byte, error) {
+	slog.Info("updating resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
 	body, status, err := c.doRequest(ctx, http.MethodPatch, urlStr, bytes.NewReader(data))
 	if err != nil {
@@ -189,6 +197,7 @@ func (c *Client) Update(ctx context.Context, path string, id int, data []byte) (
 
 // Delete は DELETE /api/v1/{path}/{id} でリソースを削除する。
 func (c *Client) Delete(ctx context.Context, path string, id int) error {
+	slog.Info("deleting resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
 	body, status, err := c.doRequest(ctx, http.MethodDelete, urlStr, nil)
 	if err != nil {
@@ -204,6 +213,7 @@ func (c *Client) Delete(ctx context.Context, path string, id int) error {
 // checkout/checkin 等のリソース固有操作に使用する。
 // data が nil の場合は空ボディで送信する。
 func (c *Client) PostAction(ctx context.Context, path string, id int, action string, data []byte) ([]byte, error) {
+	slog.Info("posting action", "path", path, "id", id, "action", action)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id) + "/" + action
 	var bodyReader io.Reader
 	if data != nil {

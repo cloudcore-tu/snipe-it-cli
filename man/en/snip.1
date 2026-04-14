@@ -64,6 +64,32 @@ Custom fieldsets.
 .B maintenances
 Maintenance records.
 
+.SH BUILT-IN COMMANDS
+.TP
+.B version
+Show snipe-it-cli and Snipe-IT API version.
+.EX
+snip version
+snip version \-o json
+.EE
+.TP
+.B config
+Manage Snipe-IT instance configuration.
+.EX
+snip config init \-\-url URL \-\-token TOKEN [\-\-name NAME]
+snip config add NAME \-\-url URL \-\-token TOKEN
+snip config list
+.EE
+.TP
+.B completion
+Generate shell autocompletion script (bash/zsh/fish/powershell).
+.EX
+snip completion bash
+snip completion zsh
+snip completion fish
+snip completion powershell
+.EE
+
 .SH EXAMPLES
 .EX
 snip assets list
@@ -96,11 +122,17 @@ Output format: table (default) / json / yaml / custom-columns=... / jsonpath=...
 .B \-\-profile string
 Instance name to use (falls back to SNIPE_PROFILE env, then config file current)
 .TP
+.B \-v, \-\-verbose
+Show operational INFO logs (API calls being made)
+.TP
 .B \-\-debug
-Enable debug logging
+Show debug logs (HTTP requests/responses; Authorization header is redacted)
 
 .SH CONFIGURATION
 Config file: \fB~/.config/snipe-it-cli/config.yaml\fR (XDG: \fB$XDG_CONFIG_HOME/snipe-it-cli/config.yaml\fR)
+.PP
+The config file must have mode \fB0600\fR. A warning is shown if the permissions are too open,
+as the file contains the API token.
 .PP
 .EX
 current: prod
@@ -134,23 +166,14 @@ Profile resolution: \fB\-\-profile flag > SNIPE_PROFILE env > current\fR
 
 .SH SHELL COMPLETION
 .EX
-snip completion bash        # Bash
-snip completion zsh         # Zsh
-snip completion fish        # Fish
-snip completion powershell  # PowerShell
-.EE
-.PP
-Example (Bash):
-.EX
+# Bash
 echo 'source <(snip completion bash)' >> ~/.bashrc
-.EE
-Example (Zsh):
-.EX
+
+# Zsh
 echo 'source <(snip completion zsh)' >> ~/.zshrc
-.EE
-Example (Fish):
-.EX
-snip completion fish | source
+
+# Fish
+snip completion fish > ~/.config/fish/completions/snip.fish
 .EE
 
 .SH SEE ALSO
