@@ -57,6 +57,9 @@ API トークンは Snipe-IT 管理画面 Settings > API Keys で生成する。
 
 ### 主要 API リソース一覧
 
+全 19 CRUD リソース + 管理操作（labels/imports/settings/notes）+ レポート・アカウント。
+詳細は `docs/api-coverage.md` を参照。
+
 | CLI コマンド | API パス | 説明 |
 |---|---|---|
 | `assets` | `/api/v1/hardware` | IT 資産（ハードウェア） |
@@ -75,6 +78,9 @@ API トークンは Snipe-IT 管理画面 Settings > API Keys で生成する。
 | `suppliers` | `/api/v1/suppliers` | サプライヤー |
 | `fieldsets` | `/api/v1/fieldsets` | カスタムフィールドセット |
 | `maintenances` | `/api/v1/maintenances` | メンテナンス記録 |
+| `fields` | `/api/v1/fields` | カスタムフィールド |
+| `depreciations` | `/api/v1/depreciations` | 償却設定 |
+| `groups` | `/api/v1/groups` | 権限グループ |
 
 ## バージョニング方針
 
@@ -112,8 +118,15 @@ snip users list
 snip licenses list
 ```
 
-動詞は `list` / `get` / `create` / `update` / `delete` に統一する。  
-資産固有の操作（`checkout` / `checkin`）は assets コマンドに追加する。
+約 150 のサブコマンドを 5 カテゴリに分類:
+
+1. **CRUD リソース（19 種）**: list / get / create / update / delete
+2. **アクション**: checkout / checkin / audit / restore（リソース固有）
+3. **サブリソース参照**: history / seats / assigned-* / bytag / byserial など（30+）
+4. **レポート・アカウント**: reports activity/depreciation、account requestable/requests など
+5. **管理操作**: labels / imports / settings / notes、fields 追加操作
+
+サブリソースは `BuildSubReadCmd` / `BuildPathReadCmd` ヘルパーで実装（ADR-007 参照）。
 
 ### 出力設計
 
@@ -343,22 +356,33 @@ cmd/
     list.go             # snip config list
   internal/run/
     run.go              # BaseOptions / ParseFilters / FormatAPIError 等の共通ユーティリティ
-    resource.go         # ResourceDef / ActionDef（汎用 CRUD フレームワーク）
+    resource.go         # ResourceDef / ActionDef（CRUD）+
+                        # BuildSubReadCmd / BuildPathReadCmd（サブリソース）+
+                        # RunGetByPath / RunPostByPath / RunPatchByPath /
+                        # RunDeleteByPath / RunSaveBinary / RunUpload（パス指定実行）
   assets/               # snip assets（/api/v1/hardware）
-    assets.go           # ResourceDef + checkout/checkin 追加コマンド
   users/                # snip users
-    users.go
-  licenses/             # snip licenses
-    licenses.go
-  {resource}/           # その他リソースは ResourceDef のみ
-    {resource}.go
+  licenses/             # snip licenses（seats サブグループ含む）
+  accessories/ components/ consumables/ locations/ statuslabels/
+  fieldsets/ maintenances/ models/ manufacturers/
+  categories/ companies/ departments/ suppliers/
+  fields/               # CRUD + associate/disassociate/reorder
+  depreciations/ groups/
+  reports/              # snip reports activity/depreciation
+  account/              # snip account requestable/requests/tokens 等
+  labels/               # snip labels list/get（バイナリ出力）
+  imports/              # snip imports CRUD + create（multipart）+ process
+  settings/             # snip settings get/update/backups 等
+  notes/                # snip notes list/create（--asset-id）
 
 internal/
-  snip/              # Snipe-IT API クライアント（直接 HTTP）
-    client.go           # NewClient、List/GetByID/Create/Update/Delete 汎用メソッド
-  config/               # 設定管理（go.yaml.in/yaml/v3 + os.Getenv）
-    config.go           # FileConfig / Instance / Config 型定義
-  output/               # 出力フォーマット（table / JSON / YAML / custom-columns / jsonpath）
+  snipeit/           # Snipe-IT API クライアント（直接 HTTP）
+    client.go        # NewClient、List/GetByID/Create/Update/Delete/PostAction +
+                     # GetSub/GetByPath/PatchByPath/PostByPath/DeleteByPath/Upload
+    transport.go     # HTTP トランスポート層（デバッグログ、Authorization マスク）
+  config/            # 設定管理（go.yaml.in/yaml/v3 + os.Getenv）
+    config.go        # FileConfig / Instance / Config 型定義
+  output/            # 出力フォーマット（table / JSON / YAML / custom-columns / jsonpath）
     output.go
 
 docs/

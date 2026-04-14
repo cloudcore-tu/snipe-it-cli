@@ -14,55 +14,156 @@ Use \fB\-\-help\fR on any command for details.
 
 Compatible with Snipe-IT v8.x (API v1).
 
+~150 sub-commands are organized into five categories: CRUD resources, actions,
+sub-resource queries, reports/account, and admin operations.
+
 .SH RESOURCES
+
+.SS CRUD Resources (19 kinds)
+All resources support \fBlist\fR / \fBget\fR / \fBcreate\fR / \fBupdate\fR / \fBdelete\fR.
 .TP
 .B assets
-IT assets (hardware). Supports checkout/checkin/audit in addition to standard CRUD.
+IT assets (hardware). API: \fI/api/v1/hardware\fR
 .TP
 .B users
-Users.
+Users. API: \fI/api/v1/users\fR
 .TP
 .B licenses
-Software licenses.
+Software licenses. API: \fI/api/v1/licenses\fR
 .TP
 .B accessories
-Accessories.
+Accessories. API: \fI/api/v1/accessories\fR
 .TP
 .B consumables
-Consumables.
+Consumables. API: \fI/api/v1/consumables\fR
 .TP
 .B components
-Components.
+Components. API: \fI/api/v1/components\fR
 .TP
 .B categories
-Asset categories.
+Asset categories. API: \fI/api/v1/categories\fR
 .TP
 .B companies
-Companies.
+Companies. API: \fI/api/v1/companies\fR
 .TP
 .B locations
-Locations.
+Locations. API: \fI/api/v1/locations\fR
 .TP
 .B manufacturers
-Manufacturers.
+Manufacturers. API: \fI/api/v1/manufacturers\fR
 .TP
 .B models
-Device models.
+Device models. API: \fI/api/v1/models\fR
 .TP
 .B departments
-Departments.
+Departments. API: \fI/api/v1/departments\fR
 .TP
 .B statuslabels
-Status labels.
+Status labels. API: \fI/api/v1/statuslabels\fR
 .TP
 .B suppliers
-Suppliers.
+Suppliers. API: \fI/api/v1/suppliers\fR
 .TP
 .B fieldsets
-Custom fieldsets.
+Custom fieldsets. API: \fI/api/v1/fieldsets\fR
 .TP
 .B maintenances
-Maintenance records.
+Maintenance records. API: \fI/api/v1/maintenances\fR
+.TP
+.B fields
+Custom fields. API: \fI/api/v1/fields\fR
+.TP
+.B depreciations
+Depreciation schedules. API: \fI/api/v1/depreciations\fR
+.TP
+.B groups
+Permission groups. API: \fI/api/v1/groups\fR
+
+Verb flags: \fBlist\fR \-\-filter key=value \-\-limit N \-\-offset N |
+\fBget\fR \-\-id N | \fBcreate\fR \-\-data JSON |
+\fBupdate\fR \-\-id N \-\-data JSON | \fBdelete\fR \-\-id N \-\-yes
+
+.SS Actions
+Resource-specific operations. Calls \fIPOST /api/v1/{resource}/{id}/{action}\fR.
+.TP
+.B assets
+checkout, checkin, audit, restore
+.TP
+.B licenses
+checkout, checkin
+.TP
+.B accessories
+checkout, checkin
+.TP
+.B consumables
+checkout
+.TP
+.B components
+checkout, checkin
+.TP
+.B manufacturers
+restore
+.TP
+.B models
+restore
+
+.SS Sub-resource Queries
+Retrieve related data for a resource. Use \-\-id N for the parent resource ID.
+.TP
+.B assets history / licenses / assigned-assets / assigned-accessories / assigned-components
+.TP
+.B assets bytag \-\-tag TAG / byserial \-\-serial SERIAL
+.TP
+.B users assets / licenses / accessories / consumables
+.TP
+.B licenses history / seats list / seats get \-\-seat-id M / seats update \-\-seat-id M
+.TP
+.B accessories history / checkedout
+.TP
+.B consumables history / users
+.TP
+.B components history / assets
+.TP
+.B locations users / assets / assigned-assets / assigned-accessories / history
+.TP
+.B statuslabels assetlist / counts-by-label / counts-by-type
+.TP
+.B fieldsets fields
+.TP
+.B maintenances history
+.TP
+.B models history
+
+.SS Reports and Account
+.TP
+.B reports activity
+Activity log report.
+.TP
+.B reports depreciation
+Depreciation report.
+.TP
+.B account requestable / requests / request / cancel-request
+Asset request workflows.
+.TP
+.B account eulas / tokens / token-create / token-delete
+EULA acceptance and personal access token management.
+
+.SS Admin Operations
+.TP
+.B labels
+Label templates. \fBlist\fR (JSON) + \fBget \-\-name NAME [\-\-output-file PATH]\fR (binary PDF).
+.TP
+.B imports
+Bulk CSV imports. \fBlist / get / update / delete\fR + \fBcreate \-\-file PATH \-\-type TYPE\fR (multipart upload) + \fBprocess \-\-id N\fR.
+.TP
+.B settings
+Server settings. Sub-commands: \fBget\fR, \fBupdate\fR, \fBlogin-attempts\fR, \fBbackups\fR, \fBbackup-download [\-\-name NAME] [\-\-output-file PATH]\fR.
+.TP
+.B notes
+Asset notes. \fBlist \-\-asset-id N\fR / \fBcreate \-\-asset-id N \-\-data JSON\fR.
+.TP
+.B fields (extra operations)
+\fBassociate \-\-id N \-\-fieldset-id M\fR / \fBdisassociate \-\-id N \-\-fieldset-id M\fR / \fBreorder \-\-fieldset-id N \-\-data '[1,2,3]'\fR
 
 .SH BUILT-IN COMMANDS
 .TP
@@ -92,17 +193,43 @@ snip completion powershell
 
 .SH EXAMPLES
 .EX
-snip assets list
+# Basic CRUD
 snip assets list \-\-filter status_id=2
-snip assets list \-o json
 snip assets get \-\-id 123
-snip assets create \-\-data '{"name":"Laptop-001","asset_tag":"ASSET-001","model_id":1,"status_id":2}'
+snip assets create \-\-data '{"name":"Laptop-001","asset_tag":"A-001","model_id":1,"status_id":2}'
 snip assets update \-\-id 123 \-\-data '{"status_id":3}'
 snip assets delete \-\-id 123 \-\-yes
+
+# Actions
 snip assets checkout \-\-id 123 \-\-data '{"checkout_to_type":"user","assigned_user":1}'
-snip assets checkin \-\-id 123
-snip users list
-snip licenses list \-\-limit 100 \-\-offset 0
+snip assets checkin  \-\-id 123
+snip assets restore  \-\-id 123
+
+# Sub-resource queries
+snip assets history \-\-id 123
+snip assets bytag \-\-tag ASSET-001
+snip assets byserial \-\-serial SN12345
+snip users assets \-\-id 5
+snip licenses seats list \-\-id 10
+snip locations assigned-assets \-\-id 2
+
+# Reports and account
+snip reports activity
+snip account requestable
+snip account request \-\-id 42
+
+# Admin operations
+snip imports create \-\-file assets.csv \-\-type hardware
+snip imports process \-\-id 3
+snip notes list \-\-asset-id 123
+snip notes create \-\-asset-id 123 \-\-data '{"note":"Battery replaced"}'
+snip labels get \-\-name barcode \-\-output-file label.pdf
+snip settings backup-download \-\-output-file backup.zip
+
+# Agent/script usage
+snip assets list \-o json
+snip assets list \-o 'custom-columns=ID:.id,NAME:.name,STATUS:.status_label.name'
+snip assets list \-o 'jsonpath={rows.#.name}'
 .EE
 
 .SH GLOBAL FLAGS
