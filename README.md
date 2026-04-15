@@ -294,6 +294,40 @@ source <(snip completion zsh)
 snip completion fish > ~/.config/fish/completions/snip.fish
 ```
 
+## ローカル Snipe-IT でのテスト
+
+```bash
+bash scripts/snipeit-local-e2e.sh
+```
+
+このスクリプトは以下をまとめて行う:
+
+- `docker compose down -v` で既存ローカル環境を初期化
+- `docker compose up -d` で Snipe-IT を起動
+- setup wizard を HTTP 経由で完走
+- API トークンを自動準備
+- `bash scripts/snipeit-local-smoke.sh` を実行
+- `XDG_CONFIG_HOME` を一時ディレクトリに退避し、CLI 設定生成物も掃除
+- 終了時に `docker compose down -v` でクリーンアップ
+
+手動でデバッグしたい場合:
+
+```bash
+docker compose up -d
+
+# ブラウザで http://localhost:18080/setup を開いてセットアップ完了
+docker compose exec snipeit php artisan snipeit:make-api-key --user_id=1 --name=local-smoke --key-only
+```
+
+終了:
+
+```bash
+docker compose down
+
+# DB とアップロードを消して最初からやり直す場合
+docker compose down -v
+```
+
 ## ドキュメント
 
 - [docs/adr/](docs/adr/) — 設計判断の記録

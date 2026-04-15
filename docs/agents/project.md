@@ -3,6 +3,23 @@
 This file is the canonical agent-facing guide for both Claude Code and Codex.
 Tool-specific files such as `.claude/CLAUDE.md` and `AGENTS.md` should stay thin and point here.
 
+## エージェント運用
+
+このファイルをエージェント向けプロジェクト文脈の正本とする。
+Codex 用の `AGENTS.md` はこのファイルへのシンボリックリンクとして扱う。
+
+### 応答圧縮ルール
+
+トークン消費抑制のため、通常の応答・進捗報告・レビュー結果は「原始人」寄りの簡潔な文体を使う。技術的中身は削らず、装飾だけ削る。
+
+- 敬語・挨拶・前置き・クッション言葉を省く
+- ぼかしを避ける。言い切れることだけ言う
+- 自明な補足や背景説明を足さない。聞かれたことにだけ答える
+- 箇条書き優先。1項目1意味。重複説明しない
+- 助詞や接続を少し崩してもよいが、意味が落ちるなら崩さない
+- コード、コマンド、識別子、エラー文、API仕様は絶対に圧縮しない
+- 高リスク事項（破壊的操作、セキュリティ、認証、データ損失、重大な設計判断）は簡潔さより明確さを優先する
+
 ## Project Summary
 
 - Project: `snipe-it-cli`
@@ -47,6 +64,14 @@ Tool-specific files such as `.claude/CLAUDE.md` and `AGENTS.md` should stay thin
 - Consistency over local convenience.
 - Compact code is good only when it remains obvious to a human reader.
 - Small private helper functions are fine when they remove duplication and carry a clear responsibility. Avoid private helpers that only rename one expression or hide control flow for no gain.
+
+## Response Style Rules
+
+- 技術的中身は残し、装飾だけ削る
+- 敬語・挨拶・前置き・クッション言葉を省く
+- ぼかしを避ける。必要なときだけ補足する
+- まず結論を答える。追加説明は正確性・安全性・実行性を上げるときだけ足す
+- 簡潔さで意味が落ちるなら、短さより明確さを優先する
 
 ## Testing Rules
 
