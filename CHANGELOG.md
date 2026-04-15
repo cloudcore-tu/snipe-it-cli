@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- release workflow の changelog 抽出を見出し込みに修正し、未検出時は fail するようにした
+
 ## [1.0.2] - 2026-04-15
 
 ### Changed

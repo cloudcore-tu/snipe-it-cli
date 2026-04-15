@@ -29,9 +29,17 @@ jobs:
       - name: Extract release notes from CHANGELOG.md
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk "/^## \[${version}\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md \
+          awk -v version="${version}" '
+            $0 ~ "^## \\[" version "\\]" { flag=1 }
+            /^## \[/ && flag && $0 !~ "^## \\[" version "\\]" { exit }
+            flag { print }
+          ' CHANGELOG.md \
             | sed '/^[[:space:]]*$/d' \
             > /tmp/release_notes.md
+          if [ ! -s /tmp/release_notes.md ]; then
+            echo "release notes section for v${version} not found in CHANGELOG.md" >&2
+            exit 1
+          fi
           echo "Release notes for v${version}:"
           cat /tmp/release_notes.md
 
