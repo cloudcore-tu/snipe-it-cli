@@ -39,7 +39,9 @@ Snipe-IT の REST API は `/api/v1/{resource}` の一貫したパターンを持
 
 ## 決定
 
-**C. 直接 HTTP クライアントを実装する**
+### 採用案
+
+C. 直接 HTTP クライアントを実装する
 
 Snipe-IT API の一貫したパターン（`GET /api/v1/{resource}`, `POST /api/v1/{resource}`, etc.）を活かし、以下の汎用メソッドを持つ `internal/snipeit.Client` を実装する:
 
