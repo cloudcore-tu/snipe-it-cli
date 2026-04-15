@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type testContextKey string
+
 func newCompleteValidateRunCommand(ctx context.Context) *cobra.Command {
 	root := &cobra.Command{Use: "snip"}
 	root.PersistentFlags().String("profile", "", "")
@@ -30,7 +32,9 @@ func TestCompleteValidateRun_CallsValidateThenRun(t *testing.T) {
 	t.Setenv("SNIPEIT_URL", "https://example.invalid")
 	t.Setenv("SNIPEIT_TOKEN", "test-token")
 
-	cmd := newCompleteValidateRunCommand(context.WithValue(context.Background(), "key", "value"))
+	const key testContextKey = "key"
+
+	cmd := newCompleteValidateRunCommand(context.WithValue(context.Background(), key, "value"))
 	var calls []string
 
 	err := run.CompleteValidateRun(cmd, &run.BaseOptions{}, func() error {
@@ -38,7 +42,7 @@ func TestCompleteValidateRun_CallsValidateThenRun(t *testing.T) {
 		return nil
 	}, func(ctx context.Context) error {
 		calls = append(calls, "run")
-		assert.Equal(t, "value", ctx.Value("key"))
+		assert.Equal(t, "value", ctx.Value(key))
 		return nil
 	})
 
