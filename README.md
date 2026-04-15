@@ -12,12 +12,30 @@ Snipe-IT（IT資産管理 OSS）を操作する Go 製 CLI ツール。コマン
 
 ### Homebrew（macOS / Linux）
 
+internal リポジトリのため、認証が必要。
+
+#### gh CLI ユーザー（推奨）
+
 ```bash
 brew tap cloudcore-tu/tap https://github.com/cloudcore-tu/homebrew-tap.git
 brew install snipe-it-cli
 ```
 
 shell completion は自動配置される。
+`gh release download` が gh の認証を自動使用する。
+
+#### SSH ユーザー（gh CLI なし）
+
+```bash
+# HOMEBREW_GITHUB_API_TOKEN を設定（シェル設定に追記すると恒久的に有効）
+export HOMEBREW_GITHUB_API_TOKEN=<GitHub PAT>
+
+# tap を追加（SSH）
+brew tap cloudcore-tu/tap git@github.com:cloudcore-tu/homebrew-tap.git
+brew install snipe-it-cli
+```
+
+`HOMEBREW_GITHUB_API_TOKEN` で curl フォールバックする。
 
 ### deb / rpm（Linux）
 
