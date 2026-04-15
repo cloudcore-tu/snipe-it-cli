@@ -14,8 +14,12 @@ ADMIN_USERNAME="${SNIPEIT_ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="${SNIPEIT_ADMIN_PASSWORD:-password}"
 TOKEN_NAME="${SNIPEIT_TOKEN_NAME:-local-smoke}"
 GOCACHE_DIR="${GOCACHE:-/tmp/snipeit-cli-gocache}"
+TEMP_XDG_CONFIG_HOME=""
 
 cleanup() {
+  if [[ -n "${TEMP_XDG_CONFIG_HOME}" ]]; then
+    rm -rf "${TEMP_XDG_CONFIG_HOME}"
+  fi
   docker compose down -v >/dev/null 2>&1 || true
 }
 
@@ -104,6 +108,7 @@ main() {
   local token
 
   trap cleanup EXIT
+  TEMP_XDG_CONFIG_HOME="$(mktemp -d)"
 
   echo "Resetting local Snipe-IT stack"
   docker compose down -v >/dev/null 2>&1 || true
@@ -132,7 +137,8 @@ main() {
   )"
 
   echo "Running smoke test"
-  env GOCACHE="${GOCACHE_DIR}" SNIPEIT_URL="${SNIPEIT_URL}" SNIPEIT_TOKEN="${token}" \
+  env XDG_CONFIG_HOME="${TEMP_XDG_CONFIG_HOME}" GOCACHE="${GOCACHE_DIR}" \
+    SNIPEIT_URL="${SNIPEIT_URL}" SNIPEIT_TOKEN="${token}" \
     bash scripts/snipeit-local-smoke.sh
 
   echo "Local end-to-end smoke test passed"

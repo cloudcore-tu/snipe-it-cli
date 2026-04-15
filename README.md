@@ -307,6 +307,7 @@ bash scripts/snipeit-local-e2e.sh
 - setup wizard を HTTP 経由で完走
 - API トークンを自動準備
 - `bash scripts/snipeit-local-smoke.sh` を実行
+- `XDG_CONFIG_HOME` を一時ディレクトリに退避し、CLI 設定生成物も掃除
 - 終了時に `docker compose down -v` でクリーンアップ
 
 手動でデバッグしたい場合:
