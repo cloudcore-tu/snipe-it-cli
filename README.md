@@ -306,8 +306,7 @@ bash scripts/snipeit-local-e2e.sh
 - `docker compose up -d` で Snipe-IT を起動
 - setup wizard を HTTP 経由で完走
 - API トークンを自動準備
-- `bash scripts/snipeit-local-smoke.sh` を実行
-- `XDG_CONFIG_HOME` を一時ディレクトリに退避し、CLI 設定生成物も掃除
+- `docker compose run --rm snip ...` で CLI も Docker 内から実行
 - 終了時に `docker compose down -v` でクリーンアップ
 
 手動でデバッグしたい場合:
@@ -317,6 +316,14 @@ docker compose up -d
 
 # ブラウザで http://localhost:18080/setup を開いてセットアップ完了
 docker compose exec snipeit php artisan snipeit:make-api-key --user_id=1 --name=local-smoke --key-only
+
+docker compose run --rm \
+  -e SNIPEIT_URL=http://snipeit \
+  -e SNIPEIT_TOKEN=PASTE_LOCAL_API_TOKEN \
+  -e XDG_CONFIG_HOME=/tmp/snipe-it-cli-config \
+  -e GOCACHE=/tmp/snipeit-cli-gocache \
+  snip \
+  sh scripts/snipeit-local-smoke.sh
 ```
 
 終了:

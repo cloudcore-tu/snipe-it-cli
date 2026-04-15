@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-set -euo pipefail
+set -eu
 
 : "${SNIPEIT_TOKEN:?set SNIPEIT_TOKEN to a local Snipe-IT API token first}"
 
