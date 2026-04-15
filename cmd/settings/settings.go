@@ -3,6 +3,8 @@
 package settings
 
 import (
+	"context"
+
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
 	"github.com/spf13/cobra"
 )
@@ -42,14 +44,13 @@ func buildUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "設定を更新する（POST /api/v1/settings）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			payload, err := run.JSONBytes(data)
-			if err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o, "settings", payload)
+			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
+				payload, err := run.JSONBytes(data)
+				if err != nil {
+					return err
+				}
+				return run.RunPostByPath(ctx, o, "settings", payload)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&data, "data", "", "JSON data for settings fields to update (required)")
@@ -65,16 +66,13 @@ func buildBackupDownloadCmd() *cobra.Command {
 		Use:   "backup-download",
 		Short: "バックアップをダウンロードする（省略時は最新）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			var apiPath string
-			if name != "" {
-				apiPath = "settings/backups/download/" + name
-			} else {
-				apiPath = "settings/backups/download/latest"
-			}
-			return run.RunSaveBinary(cmd.Context(), o, apiPath, outputFile)
+			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
+				apiPath := "settings/backups/download/latest"
+				if name != "" {
+					apiPath = "settings/backups/download/" + name
+				}
+				return run.RunSaveBinary(ctx, o, apiPath, outputFile)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "Backup file name (default: latest)")

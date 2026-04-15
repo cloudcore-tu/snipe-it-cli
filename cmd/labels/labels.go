@@ -4,6 +4,8 @@
 package labels
 
 import (
+	"context"
+
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
 	"github.com/spf13/cobra"
 )
@@ -28,10 +30,9 @@ func buildGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "ラベルを取得してファイルに保存する（省略時は stdout）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			return run.RunSaveBinary(cmd.Context(), o, "labels/"+name, outputFile)
+			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
+				return run.RunSaveBinary(ctx, o, "labels/"+name, outputFile)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "Label template name (required)")

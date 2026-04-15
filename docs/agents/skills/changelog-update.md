@@ -1,16 +1,16 @@
 # changelog-update
 
-Update `CHANGELOG.md` in Keep a Changelog style.
+`CHANGELOG.md` を Keep a Changelog 形式で更新する。
 
-## Workflow
+## 手順
 
-1. Inspect recent changes with `git log` and `git diff`.
-2. Open `CHANGELOG.md` and find `[Unreleased]`.
-3. Add entries under the correct section.
+1. `git log` と `git diff` で最近の変更を確認する。
+2. `CHANGELOG.md` を開いて `[Unreleased]` を探す。
+3. 正しい section に項目を追加する。
 
-## Rules
+## ルール
 
-- Section headers stay in English: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
-- Entry text stays in Japanese.
-- Prefer user-visible changes over internal refactors.
-- Avoid duplicate entries for the same feature.
+- section 見出しは英語のまま保つ: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`。
+- 項目本文は日本語で書く。
+- 内部 refactor より user-visible な変更を優先する。
+- 同じ機能の重複記載を避ける。

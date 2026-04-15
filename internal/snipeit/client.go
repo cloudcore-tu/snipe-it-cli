@@ -31,12 +31,12 @@ type Client struct {
 }
 
 type requestOptions struct {
-	method          string
-	url             string
-	body            io.Reader
-	contentType     string
-	okStatuses      []int
-	extractPayload  bool
+	method         string
+	url            string
+	body           io.Reader
+	contentType    string
+	okStatuses     []int
+	extractPayload bool
 }
 
 // NewClient は Snipe-IT API クライアントを初期化する。
@@ -311,14 +311,12 @@ func (c *Client) PostByPath(ctx context.Context, urlPath string, data []byte) ([
 // account/personal-access-tokens/{id} 等の非 CRUD DELETE に使用する。
 func (c *Client) DeleteByPath(ctx context.Context, urlPath string) error {
 	slog.Info("deleting by path", "path", urlPath)
-	body, status, err := c.doRequest(ctx, http.MethodDelete, c.apiURL(urlPath), nil)
-	if err != nil {
-		return err
-	}
-	if status != http.StatusOK && status != http.StatusNoContent {
-		return newAPIError(status, body)
-	}
-	return nil
+	_, err := c.doAPIRequest(ctx, requestOptions{
+		method:     http.MethodDelete,
+		url:        c.apiURL(urlPath),
+		okStatuses: []int{http.StatusOK, http.StatusNoContent},
+	})
+	return err
 }
 
 // Upload は multipart/form-data で POST /api/v1/{urlPath} にファイルをアップロードする。

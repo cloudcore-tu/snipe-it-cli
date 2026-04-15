@@ -1,8 +1,8 @@
 # contextual-commit
 
-Write commit messages in contextual commit format when the user explicitly asks for a commit.
+ユーザーが commit を明示要求したときに、contextual commit 形式で commit message を作る。
 
-## Format
+## 形式
 
 ```text
 type(scope): 簡潔な説明
@@ -16,9 +16,9 @@ type(scope): 簡潔な説明
 Co-Authored-By: ...
 ```
 
-## Rules
+## ルール
 
-- Emphasize why the change exists.
-- Keep one logical change per commit.
-- Use `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, or `ci`.
-- Add `Co-Authored-By` when AI materially contributed.
+- なぜその変更が必要かを強く出す。
+- 1 commit 1 論理変更を保つ。
+- `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci` を使う。
+- AI が実質的に関与した場合は `Co-Authored-By` を付ける。

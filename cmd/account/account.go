@@ -3,6 +3,7 @@
 package account
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
@@ -58,14 +59,11 @@ func buildRequestCmd() *cobra.Command {
 		Use:   "request",
 		Short: "資産のリクエストを送信する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--id", id); err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o,
-				"account/request/"+strconv.Itoa(id), nil)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequirePositiveInt("--id", id)
+			}, func(ctx context.Context) error {
+				return run.RunPostByPath(ctx, o, "account/request/"+strconv.Itoa(id), nil)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Asset ID to request (required)")
@@ -80,14 +78,11 @@ func buildCancelRequestCmd() *cobra.Command {
 		Use:   "cancel-request",
 		Short: "資産リクエストをキャンセルする",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--id", id); err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o,
-				"account/request/"+strconv.Itoa(id)+"/cancel", nil)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequirePositiveInt("--id", id)
+			}, func(ctx context.Context) error {
+				return run.RunPostByPath(ctx, o, "account/request/"+strconv.Itoa(id)+"/cancel", nil)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Asset ID to cancel request for (required)")
@@ -102,15 +97,13 @@ func buildTokenCreateCmd() *cobra.Command {
 		Use:   "token-create",
 		Short: "API トークンを作成する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			payload, err := run.JSONBytes(data)
-			if err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o,
-				"account/personal-access-tokens", payload)
+			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
+				payload, err := run.JSONBytes(data)
+				if err != nil {
+					return err
+				}
+				return run.RunPostByPath(ctx, o, "account/personal-access-tokens", payload)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&data, "data", "", `JSON data, e.g. {"name":"my-token"} (required)`)
@@ -125,14 +118,11 @@ func buildTokenDeleteCmd() *cobra.Command {
 		Use:   "token-delete",
 		Short: "API トークンを削除する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--token-id", tokenID); err != nil {
-				return err
-			}
-			return run.RunDeleteByPath(cmd.Context(), o,
-				"account/personal-access-tokens/"+strconv.Itoa(tokenID), tokenID)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequirePositiveInt("--token-id", tokenID)
+			}, func(ctx context.Context) error {
+				return run.RunDeleteByPath(ctx, o, "account/personal-access-tokens/"+strconv.Itoa(tokenID), tokenID)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&tokenID, "token-id", 0, "Token ID to delete (required)")

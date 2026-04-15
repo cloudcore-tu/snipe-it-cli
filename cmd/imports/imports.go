@@ -3,6 +3,8 @@
 package imports
 
 import (
+	"context"
+
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
 	"github.com/spf13/cobra"
 )
@@ -52,11 +54,9 @@ func buildCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "CSV ファイルをアップロードしてインポートを作成する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			return run.RunUpload(cmd.Context(), o, "imports", "file_contents", filePath,
-				map[string]string{"import_type": importType})
+			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
+				return run.RunUpload(ctx, o, "imports", "file_contents", filePath, map[string]string{"import_type": importType})
+			})
 		},
 	}
 	cmd.Flags().StringVar(&filePath, "file", "", "Path to CSV file (required)")

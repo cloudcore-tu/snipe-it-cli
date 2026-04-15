@@ -1,12 +1,12 @@
 # adr-writer
 
-Create a new ADR under `docs/adr/` when the task introduces or records an architectural decision.
+タスクが設計判断を導入または記録する場合に、`docs/adr/` 配下へ新しい ADR を追加する。
 
-## Workflow
+## 手順
 
-1. List existing ADRs in `docs/adr/` and pick the next number.
-2. Create `NNN-kebab-case-title.md`.
-3. Use this template:
+1. `docs/adr/` の既存 ADR を見て次の番号を決める。
+2. `NNN-kebab-case-title.md` を作る。
+3. 次の template を使う。
 
 ```markdown
 # ADR-NNN: Title
@@ -25,8 +25,8 @@ Create a new ADR under `docs/adr/` when the task introduces or records an archit
 ## 未決事項
 ```
 
-## Rules
+## ルール
 
-- Default status is `提案`.
-- Write factual context, not speculation.
-- Record why the chosen option won, not only what was chosen.
+- デフォルト status は `提案`。
+- コンテキストは推測でなく事実を書く。
+- 何を選んだかだけでなく、なぜその案が勝ったかを書く。

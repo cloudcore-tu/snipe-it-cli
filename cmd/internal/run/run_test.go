@@ -1,12 +1,93 @@
 package run_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func newCompleteValidateRunCommand(ctx context.Context) *cobra.Command {
+	root := &cobra.Command{Use: "snip"}
+	root.PersistentFlags().String("profile", "", "")
+	root.PersistentFlags().String("url", "", "")
+	root.PersistentFlags().String("token", "", "")
+	root.PersistentFlags().Int("timeout", 0, "")
+	root.PersistentFlags().String("output", "", "")
+
+	cmd := &cobra.Command{Use: "test"}
+	cmd.SetContext(ctx)
+	root.AddCommand(cmd)
+	return cmd
+}
+
+func TestCompleteValidateRun_CallsValidateThenRun(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("SNIPEIT_URL", "https://example.invalid")
+	t.Setenv("SNIPEIT_TOKEN", "test-token")
+
+	cmd := newCompleteValidateRunCommand(context.WithValue(context.Background(), "key", "value"))
+	var calls []string
+
+	err := run.CompleteValidateRun(cmd, &run.BaseOptions{}, func() error {
+		calls = append(calls, "validate")
+		return nil
+	}, func(ctx context.Context) error {
+		calls = append(calls, "run")
+		assert.Equal(t, "value", ctx.Value("key"))
+		return nil
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"validate", "run"}, calls)
+}
+
+func TestCompleteValidateRun_StopsBeforeRunWhenValidateFails(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("SNIPEIT_URL", "https://example.invalid")
+	t.Setenv("SNIPEIT_TOKEN", "test-token")
+
+	cmd := newCompleteValidateRunCommand(context.Background())
+	wantErr := errors.New("validate failed")
+	runCalled := false
+
+	err := run.CompleteValidateRun(cmd, &run.BaseOptions{}, func() error {
+		return wantErr
+	}, func(context.Context) error {
+		runCalled = true
+		return nil
+	})
+
+	require.ErrorIs(t, err, wantErr)
+	assert.False(t, runCalled)
+}
+
+func TestCompleteValidateRun_StopsOnCompleteError(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("SNIPEIT_URL", "")
+	t.Setenv("SNIPEIT_TOKEN", "")
+
+	cmd := newCompleteValidateRunCommand(context.Background())
+	validateCalled := false
+	runCalled := false
+
+	err := run.CompleteValidateRun(cmd, &run.BaseOptions{}, func() error {
+		validateCalled = true
+		return nil
+	}, func(context.Context) error {
+		runCalled = true
+		return nil
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Snipe-IT URL is not configured")
+	assert.False(t, validateCalled)
+	assert.False(t, runCalled)
+}
 
 // --- ParseFilters ---
 

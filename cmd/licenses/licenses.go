@@ -2,6 +2,7 @@
 package licenses
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
@@ -59,17 +60,14 @@ func buildSeatGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "ライセンスシートを ID で取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--id", licenseID); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--seat-id", seatID); err != nil {
-				return err
-			}
-			return run.RunGetByPath(cmd.Context(), o,
-				fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID))
+			return run.CompleteValidateRun(cmd, o, func() error {
+				if err := run.RequirePositiveInt("--id", licenseID); err != nil {
+					return err
+				}
+				return run.RequirePositiveInt("--seat-id", seatID)
+			}, func(ctx context.Context) error {
+				return run.RunGetByPath(ctx, o, fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID))
+			})
 		},
 	}
 	cmd.Flags().IntVar(&licenseID, "id", 0, "License ID (required)")
@@ -87,17 +85,14 @@ func buildSeatUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "ライセンスシートを更新する（PATCH）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--id", licenseID); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--seat-id", seatID); err != nil {
-				return err
-			}
-			return run.RunPatchByPath(cmd.Context(), o,
-				fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID), data)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				if err := run.RequirePositiveInt("--id", licenseID); err != nil {
+					return err
+				}
+				return run.RequirePositiveInt("--seat-id", seatID)
+			}, func(ctx context.Context) error {
+				return run.RunPatchByPath(ctx, o, fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID), data)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&licenseID, "id", 0, "License ID (required)")

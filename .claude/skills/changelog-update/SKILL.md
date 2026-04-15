@@ -5,4 +5,4 @@ description: Keep a Changelog 形式で CHANGELOG.md を更新するスキル。
 
 # CHANGELOG 更新
 
-Canonical workflow: `docs/agents/skills/changelog-update.md`
+正本手順: `docs/agents/skills/changelog-update.md`
