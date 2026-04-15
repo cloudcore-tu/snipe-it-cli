@@ -38,16 +38,12 @@ func buildAssociateCmd() *cobra.Command {
 		Short: "フィールドをフィールドセットに関連付ける",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run.CompleteValidateRun(cmd, o, func() error {
-				if err := run.RequirePositiveInt("--id", id); err != nil {
-					return err
-				}
-				return run.RequirePositiveInt("--fieldset-id", fieldsetID)
+				return run.RequireAll(
+					run.RequirePositiveInt("--id", id),
+					run.RequirePositiveInt("--fieldset-id", fieldsetID),
+				)
 			}, func(ctx context.Context) error {
-				body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
-				if err != nil {
-					return err
-				}
-				return run.RunPostByPath(ctx, o, fmt.Sprintf("fields/%d/associate", id), body)
+				return run.RunPostValueByPath(ctx, o, fmt.Sprintf("fields/%d/associate", id), map[string]int{"fieldset_id": fieldsetID})
 			})
 		},
 	}
@@ -66,16 +62,12 @@ func buildDisassociateCmd() *cobra.Command {
 		Short: "フィールドをフィールドセットから切り離す",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run.CompleteValidateRun(cmd, o, func() error {
-				if err := run.RequirePositiveInt("--id", id); err != nil {
-					return err
-				}
-				return run.RequirePositiveInt("--fieldset-id", fieldsetID)
+				return run.RequireAll(
+					run.RequirePositiveInt("--id", id),
+					run.RequirePositiveInt("--fieldset-id", fieldsetID),
+				)
 			}, func(ctx context.Context) error {
-				body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
-				if err != nil {
-					return err
-				}
-				return run.RunPostByPath(ctx, o, fmt.Sprintf("fields/%d/disassociate", id), body)
+				return run.RunPostValueByPath(ctx, o, fmt.Sprintf("fields/%d/disassociate", id), map[string]int{"fieldset_id": fieldsetID})
 			})
 		},
 	}
@@ -99,11 +91,7 @@ func buildReorderCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, o, func() error {
 				return run.RequirePositiveInt("--fieldset-id", fieldsetID)
 			}, func(ctx context.Context) error {
-				payload, err := run.JSONBytes(data)
-				if err != nil {
-					return err
-				}
-				return run.RunPostByPath(ctx, o, fmt.Sprintf("fields/fieldsets/%d/order", fieldsetID), payload)
+				return run.RunPostJSONByPath(ctx, o, fmt.Sprintf("fields/fieldsets/%d/order", fieldsetID), data)
 			})
 		},
 	}

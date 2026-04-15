@@ -30,7 +30,9 @@ func buildGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "ラベルを取得してファイルに保存する（省略時は stdout）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequireNonEmpty("--name", name)
+			}, func(ctx context.Context) error {
 				return run.RunSaveBinary(ctx, o, "labels/"+name, outputFile)
 			})
 		},

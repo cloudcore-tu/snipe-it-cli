@@ -108,6 +108,16 @@ func CompleteValidateRun(
 	return run(cmd.Context())
 }
 
+// RequireAll は複数の validation error を順に評価し、最初のエラーを返す。
+func RequireAll(validations ...error) error {
+	for _, err := range validations {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ParseFilters は "key=value" 形式の文字列スライスを map[string][]string に変換する。
 // --filter フラグの値を API クエリパラメータに変換するために使用する。
 // 同一キーの複数指定に対応する（例: --filter status=1 --filter category_id=2）。
@@ -195,4 +205,20 @@ func RequireNonEmpty(flagName, value string) error {
 		return nil
 	}
 	return fmt.Errorf("%s must not be empty", flagName)
+}
+
+// RequireFileExists はファイルパスが空でなく、既存の通常ファイルを指すことを保証する。
+func RequireFileExists(flagName, path string) error {
+	if err := RequireNonEmpty(flagName, path); err != nil {
+		return err
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to access %s: %w", flagName, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("%s must point to a file", flagName)
+	}
+	return nil
 }

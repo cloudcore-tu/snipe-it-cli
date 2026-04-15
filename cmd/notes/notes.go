@@ -56,11 +56,7 @@ func buildCreateCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, o, func() error {
 				return run.RequirePositiveInt("--asset-id", assetID)
 			}, func(ctx context.Context) error {
-				payload, err := run.JSONBytes(data)
-				if err != nil {
-					return err
-				}
-				return run.RunPostByPath(ctx, o, fmt.Sprintf("notes/%d/store", assetID), payload)
+				return run.RunPostJSONByPath(ctx, o, fmt.Sprintf("notes/%d/store", assetID), data)
 			})
 		},
 	}

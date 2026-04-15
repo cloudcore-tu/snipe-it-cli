@@ -61,10 +61,10 @@ func buildSeatGetCmd() *cobra.Command {
 		Short: "ライセンスシートを ID で取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run.CompleteValidateRun(cmd, o, func() error {
-				if err := run.RequirePositiveInt("--id", licenseID); err != nil {
-					return err
-				}
-				return run.RequirePositiveInt("--seat-id", seatID)
+				return run.RequireAll(
+					run.RequirePositiveInt("--id", licenseID),
+					run.RequirePositiveInt("--seat-id", seatID),
+				)
 			}, func(ctx context.Context) error {
 				return run.RunGetByPath(ctx, o, fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID))
 			})
@@ -86,10 +86,10 @@ func buildSeatUpdateCmd() *cobra.Command {
 		Short: "ライセンスシートを更新する（PATCH）",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run.CompleteValidateRun(cmd, o, func() error {
-				if err := run.RequirePositiveInt("--id", licenseID); err != nil {
-					return err
-				}
-				return run.RequirePositiveInt("--seat-id", seatID)
+				return run.RequireAll(
+					run.RequirePositiveInt("--id", licenseID),
+					run.RequirePositiveInt("--seat-id", seatID),
+				)
 			}, func(ctx context.Context) error {
 				return run.RunPatchByPath(ctx, o, fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID), data)
 			})
