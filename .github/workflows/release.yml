@@ -30,7 +30,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           awk -v version="${version}" '
-            $0 ~ "^## \\[" version "\\]" { flag=1 }
+            $0 ~ "^## \\[" version "\\]" { flag=1; next }
             /^## \[/ && flag && $0 !~ "^## \\[" version "\\]" { exit }
             flag { print }
           ' CHANGELOG.md \
