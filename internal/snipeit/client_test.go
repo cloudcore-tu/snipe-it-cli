@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/cloudcore-tu/snipe-it-cli/internal/snipeit"
@@ -34,6 +35,35 @@ func newTestClient(t *testing.T, srv *httptest.Server) *snipeit.Client {
 	c, err := snipeit.NewClient(srv.URL, "test-token", 5)
 	require.NoError(t, err)
 	return c
+}
+
+func assertRequest(t *testing.T, r *http.Request, method, path string) {
+	t.Helper()
+	assert.Equal(t, method, r.Method)
+	assert.Equal(t, path, r.URL.Path)
+}
+
+func writeJSON(t *testing.T, w http.ResponseWriter, status int, body string) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, err := w.Write([]byte(body))
+	require.NoError(t, err)
+}
+
+func writeAPIError(t *testing.T, w http.ResponseWriter, status int, body string) {
+	t.Helper()
+	http.Error(w, body, status)
+}
+
+func createTempUploadFile(t *testing.T, contents string) string {
+	t.Helper()
+	file, err := os.CreateTemp(t.TempDir(), "upload-*.csv")
+	require.NoError(t, err)
+	_, err = file.WriteString(contents)
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+	return file.Name()
 }
 
 // --- NewClient ---
@@ -73,11 +103,9 @@ func TestNewClient_NormalizesAPIV1Suffix(t *testing.T) {
 
 func TestList_Success(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/hardware", r.URL.Path)
-		assert.Equal(t, http.MethodGet, r.Method)
+		assertRequest(t, r, http.MethodGet, "/api/v1/hardware")
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"total":1,"rows":[{"id":1,"name":"Laptop-001"}]}`)) //nolint:errcheck
+		writeJSON(t, w, http.StatusOK, `{"total":1,"rows":[{"id":1,"name":"Laptop-001"}]}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -88,7 +116,7 @@ func TestList_Success(t *testing.T) {
 
 func TestList_ServerError(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, `{"messages":"Unauthorized"}`, http.StatusUnauthorized)
+		writeAPIError(t, w, http.StatusUnauthorized, `{"messages":"Unauthorized"}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -100,9 +128,8 @@ func TestList_ServerError(t *testing.T) {
 
 func TestGetByID_Success(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/hardware/42", r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"id":42,"name":"Laptop-001"}`)) //nolint:errcheck
+		assertRequest(t, r, http.MethodGet, "/api/v1/hardware/42")
+		writeJSON(t, w, http.StatusOK, `{"id":42,"name":"Laptop-001"}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -113,7 +140,7 @@ func TestGetByID_Success(t *testing.T) {
 
 func TestGetByID_NotFound(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, `{"messages":"No asset found"}`, http.StatusNotFound)
+		writeAPIError(t, w, http.StatusNotFound, `{"messages":"No asset found"}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -125,10 +152,8 @@ func TestGetByID_NotFound(t *testing.T) {
 
 func TestCreate_Success(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/v1/hardware", r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"success","payload":{"id":1,"name":"Laptop-001"}}`)) //nolint:errcheck
+		assertRequest(t, r, http.MethodPost, "/api/v1/hardware")
+		writeJSON(t, w, http.StatusOK, `{"status":"success","payload":{"id":1,"name":"Laptop-001"}}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -141,9 +166,7 @@ func TestCreate_Success(t *testing.T) {
 
 func TestCreate_APIErrorStatus(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"error","messages":"Validation failed"}`)) //nolint:errcheck
+		writeJSON(t, w, http.StatusOK, `{"status":"error","messages":"Validation failed"}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -156,10 +179,8 @@ func TestCreate_APIErrorStatus(t *testing.T) {
 
 func TestUpdate_Success(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPatch, r.Method)
-		assert.Equal(t, "/api/v1/hardware/1", r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"success","payload":{"id":1,"status_id":3}}`)) //nolint:errcheck
+		assertRequest(t, r, http.MethodPatch, "/api/v1/hardware/1")
+		writeJSON(t, w, http.StatusOK, `{"status":"success","payload":{"id":1,"status_id":3}}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -172,8 +193,7 @@ func TestUpdate_Success(t *testing.T) {
 
 func TestDelete_Success(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodDelete, r.Method)
-		assert.Equal(t, "/api/v1/hardware/1", r.URL.Path)
+		assertRequest(t, r, http.MethodDelete, "/api/v1/hardware/1")
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -184,7 +204,7 @@ func TestDelete_Success(t *testing.T) {
 
 func TestDelete_NotFound(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, `{"messages":"Not found"}`, http.StatusNotFound)
+		writeAPIError(t, w, http.StatusNotFound, `{"messages":"Not found"}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -196,10 +216,8 @@ func TestDelete_NotFound(t *testing.T) {
 
 func TestPostAction_Checkout(t *testing.T) {
 	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/v1/hardware/1/checkout", r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"success","payload":{"id":1}}`)) //nolint:errcheck
+		assertRequest(t, r, http.MethodPost, "/api/v1/hardware/1/checkout")
+		writeJSON(t, w, http.StatusOK, `{"status":"success","payload":{"id":1}}`)
 	})
 
 	c := newTestClient(t, srv)
@@ -207,6 +225,42 @@ func TestPostAction_Checkout(t *testing.T) {
 		[]byte(`{"checkout_to_type":"user","assigned_user":5}`))
 	require.NoError(t, err)
 	assert.Contains(t, string(data), `"id":1`)
+}
+
+func TestPostByPath_EmptyBody_DoesNotSetContentType(t *testing.T) {
+	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodPost, "/api/v1/account/request")
+		assert.Empty(t, r.Header.Get("Content-Type"))
+		writeJSON(t, w, http.StatusOK, `{"status":"success","payload":{"ok":true}}`)
+	})
+
+	c := newTestClient(t, srv)
+	data, err := c.PostByPath(context.Background(), "account/request", nil)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"ok":true`)
+}
+
+func TestUpload_Success(t *testing.T) {
+	filePath := createTempUploadFile(t, "name\nLaptop-001\n")
+
+	srv := startServer(t, func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodPost, "/api/v1/imports")
+		assert.Contains(t, r.Header.Get("Content-Type"), "multipart/form-data;")
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+		writeJSON(t, w, http.StatusOK, `{"status":"success","payload":{"id":3,"name":"hardware-import"}}`)
+	})
+
+	c := newTestClient(t, srv)
+	data, err := c.Upload(
+		context.Background(),
+		"imports",
+		"import_file",
+		filePath,
+		map[string]string{"import_type": "hardware"},
+	)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"id":3`)
+	assert.NotContains(t, string(data), `"status"`)
 }
 
 // --- APIError ---

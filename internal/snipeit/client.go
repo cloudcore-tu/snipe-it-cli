@@ -30,6 +30,15 @@ type Client struct {
 	token      string
 }
 
+type requestOptions struct {
+	method          string
+	url             string
+	body            io.Reader
+	contentType     string
+	okStatuses      []int
+	extractPayload  bool
+}
+
 // NewClient は Snipe-IT API クライアントを初期化する。
 // baseURL は "https://snipeit.example.com" 形式（末尾スラッシュなし）。
 func NewClient(baseURL, token string, timeoutSec int) (*Client, error) {
@@ -90,18 +99,21 @@ func (c *Client) apiURL(path string) string {
 	return c.baseURL + "/api/v1/" + path
 }
 
-// doRequest は HTTP リクエストを送信し、レスポンスボディと HTTP ステータスを返す。
-func (c *Client) doRequest(ctx context.Context, method, urlStr string, body io.Reader) ([]byte, int, error) {
-	req, err := http.NewRequestWithContext(ctx, method, urlStr, body)
+func (c *Client) newRequest(ctx context.Context, opts requestOptions) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, opts.method, opts.url, opts.body)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if opts.contentType != "" {
+		req.Header.Set("Content-Type", opts.contentType)
 	}
+	return req, nil
+}
 
+// doRequest は HTTP リクエストを送信し、レスポンスボディと HTTP ステータスを返す。
+func (c *Client) doRequest(req *http.Request) ([]byte, int, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -113,6 +125,41 @@ func (c *Client) doRequest(ctx context.Context, method, urlStr string, body io.R
 		return nil, resp.StatusCode, err
 	}
 	return respBody, resp.StatusCode, nil
+}
+
+func isAllowedStatus(status int, allowed []int) bool {
+	for _, candidate := range allowed {
+		if status == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func jsonContentType(body io.Reader) string {
+	if body == nil {
+		return ""
+	}
+	return "application/json"
+}
+
+func (c *Client) doAPIRequest(ctx context.Context, opts requestOptions) ([]byte, error) {
+	req, err := c.newRequest(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	body, status, err := c.doRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	if !isAllowedStatus(status, opts.okStatuses) {
+		return nil, newAPIError(status, body)
+	}
+	if !opts.extractPayload {
+		return body, nil
+	}
+	return extractPayload(body)
 }
 
 // ListParams は list 操作のクエリパラメータを保持する。
@@ -145,42 +192,36 @@ func (c *Client) List(ctx context.Context, path string, params ListParams) ([]by
 	}
 	u.RawQuery = q.Encode()
 
-	body, status, err := c.doRequest(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK {
-		return nil, newAPIError(status, body)
-	}
-	return body, nil
+	return c.doAPIRequest(ctx, requestOptions{
+		method:     http.MethodGet,
+		url:        u.String(),
+		okStatuses: []int{http.StatusOK},
+	})
 }
 
 // GetByID は GET /api/v1/{path}/{id} でリソース単体を取得する。
 func (c *Client) GetByID(ctx context.Context, path string, id int) ([]byte, error) {
 	slog.Info("getting resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
-	body, status, err := c.doRequest(ctx, http.MethodGet, urlStr, nil)
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK {
-		return nil, newAPIError(status, body)
-	}
-	return body, nil
+	return c.doAPIRequest(ctx, requestOptions{
+		method:     http.MethodGet,
+		url:        urlStr,
+		okStatuses: []int{http.StatusOK},
+	})
 }
 
 // Create は POST /api/v1/{path} でリソースを作成する。
 // Snipe-IT のレスポンスは {"status": "success", "payload": {...}} のため、payload を取り出して返す。
 func (c *Client) Create(ctx context.Context, path string, data []byte) ([]byte, error) {
 	slog.Info("creating resource", "path", path)
-	body, status, err := c.doRequest(ctx, http.MethodPost, c.apiURL(path), bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK && status != http.StatusCreated {
-		return nil, newAPIError(status, body)
-	}
-	return extractPayload(body)
+	return c.doAPIRequest(ctx, requestOptions{
+		method:         http.MethodPost,
+		url:            c.apiURL(path),
+		body:           bytes.NewReader(data),
+		contentType:    "application/json",
+		okStatuses:     []int{http.StatusOK, http.StatusCreated},
+		extractPayload: true,
+	})
 }
 
 // Update は PATCH /api/v1/{path}/{id} でリソースを部分更新する。
@@ -188,28 +229,26 @@ func (c *Client) Create(ctx context.Context, path string, data []byte) ([]byte, 
 func (c *Client) Update(ctx context.Context, path string, id int, data []byte) ([]byte, error) {
 	slog.Info("updating resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
-	body, status, err := c.doRequest(ctx, http.MethodPatch, urlStr, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK {
-		return nil, newAPIError(status, body)
-	}
-	return extractPayload(body)
+	return c.doAPIRequest(ctx, requestOptions{
+		method:         http.MethodPatch,
+		url:            urlStr,
+		body:           bytes.NewReader(data),
+		contentType:    "application/json",
+		okStatuses:     []int{http.StatusOK},
+		extractPayload: true,
+	})
 }
 
 // Delete は DELETE /api/v1/{path}/{id} でリソースを削除する。
 func (c *Client) Delete(ctx context.Context, path string, id int) error {
 	slog.Info("deleting resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
-	body, status, err := c.doRequest(ctx, http.MethodDelete, urlStr, nil)
-	if err != nil {
-		return err
-	}
-	if status != http.StatusOK && status != http.StatusNoContent {
-		return newAPIError(status, body)
-	}
-	return nil
+	_, err := c.doAPIRequest(ctx, requestOptions{
+		method:     http.MethodDelete,
+		url:        urlStr,
+		okStatuses: []int{http.StatusOK, http.StatusNoContent},
+	})
+	return err
 }
 
 // GetSub は GET /api/v1/{path}/{id}/{subPath} でサブリソースを取得する。
@@ -217,14 +256,11 @@ func (c *Client) Delete(ctx context.Context, path string, id int) error {
 func (c *Client) GetSub(ctx context.Context, path string, id int, subPath string) ([]byte, error) {
 	slog.Info("getting sub-resource", "path", path, "id", id, "sub", subPath)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id) + "/" + subPath
-	body, status, err := c.doRequest(ctx, http.MethodGet, urlStr, nil)
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK {
-		return nil, newAPIError(status, body)
-	}
-	return body, nil
+	return c.doAPIRequest(ctx, requestOptions{
+		method:     http.MethodGet,
+		url:        urlStr,
+		okStatuses: []int{http.StatusOK},
+	})
 }
 
 // GetByPath は GET /api/v1/{urlPath} で任意のパスを取得する。
@@ -232,28 +268,25 @@ func (c *Client) GetSub(ctx context.Context, path string, id int, subPath string
 func (c *Client) GetByPath(ctx context.Context, urlPath string) ([]byte, error) {
 	slog.Info("getting by path", "path", urlPath)
 	urlStr := c.apiURL(urlPath)
-	body, status, err := c.doRequest(ctx, http.MethodGet, urlStr, nil)
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK {
-		return nil, newAPIError(status, body)
-	}
-	return body, nil
+	return c.doAPIRequest(ctx, requestOptions{
+		method:     http.MethodGet,
+		url:        urlStr,
+		okStatuses: []int{http.StatusOK},
+	})
 }
 
 // PatchByPath は PATCH /api/v1/{urlPath} で任意のパスを更新する。
 // ライセンスシート更新など、CRUD 汎用メソッドが対応しない入れ子パスに使用する。
 func (c *Client) PatchByPath(ctx context.Context, urlPath string, data []byte) ([]byte, error) {
 	slog.Info("patching by path", "path", urlPath)
-	body, status, err := c.doRequest(ctx, http.MethodPatch, c.apiURL(urlPath), bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK {
-		return nil, newAPIError(status, body)
-	}
-	return extractPayload(body)
+	return c.doAPIRequest(ctx, requestOptions{
+		method:         http.MethodPatch,
+		url:            c.apiURL(urlPath),
+		body:           bytes.NewReader(data),
+		contentType:    "application/json",
+		okStatuses:     []int{http.StatusOK},
+		extractPayload: true,
+	})
 }
 
 // PostByPath は POST /api/v1/{urlPath} で任意のパスにアクションを送信する。
@@ -264,14 +297,14 @@ func (c *Client) PostByPath(ctx context.Context, urlPath string, data []byte) ([
 	if data != nil {
 		bodyReader = bytes.NewReader(data)
 	}
-	body, status, err := c.doRequest(ctx, http.MethodPost, c.apiURL(urlPath), bodyReader)
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK && status != http.StatusCreated {
-		return nil, newAPIError(status, body)
-	}
-	return extractPayload(body)
+	return c.doAPIRequest(ctx, requestOptions{
+		method:         http.MethodPost,
+		url:            c.apiURL(urlPath),
+		body:           bodyReader,
+		contentType:    jsonContentType(bodyReader),
+		okStatuses:     []int{http.StatusOK, http.StatusCreated},
+		extractPayload: true,
+	})
 }
 
 // DeleteByPath は DELETE /api/v1/{urlPath} で任意のパスを削除する。
@@ -320,28 +353,14 @@ func (c *Client) Upload(ctx context.Context, urlPath, fieldName, filePath string
 	}
 	mw.Close() //nolint:errcheck
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL(urlPath), &buf)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, newAPIError(resp.StatusCode, respBody)
-	}
-	return extractPayload(respBody)
+	return c.doAPIRequest(ctx, requestOptions{
+		method:         http.MethodPost,
+		url:            c.apiURL(urlPath),
+		body:           &buf,
+		contentType:    mw.FormDataContentType(),
+		okStatuses:     []int{http.StatusOK, http.StatusCreated},
+		extractPayload: true,
+	})
 }
 
 // PostAction は POST /api/v1/{path}/{id}/{action} を呼ぶ。
@@ -354,14 +373,14 @@ func (c *Client) PostAction(ctx context.Context, path string, id int, action str
 	if data != nil {
 		bodyReader = bytes.NewReader(data)
 	}
-	body, status, err := c.doRequest(ctx, http.MethodPost, urlStr, bodyReader)
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK && status != http.StatusCreated {
-		return nil, newAPIError(status, body)
-	}
-	return extractPayload(body)
+	return c.doAPIRequest(ctx, requestOptions{
+		method:         http.MethodPost,
+		url:            urlStr,
+		body:           bodyReader,
+		contentType:    jsonContentType(bodyReader),
+		okStatuses:     []int{http.StatusOK, http.StatusCreated},
+		extractPayload: true,
+	})
 }
 
 // extractPayload は Snipe-IT の create/update/action レスポンスから payload を取り出す。
