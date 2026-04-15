@@ -4,6 +4,7 @@
 package notes
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
@@ -30,14 +31,11 @@ func buildListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "資産のノート一覧を取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--asset-id", assetID); err != nil {
-				return err
-			}
-			return run.RunGetByPath(cmd.Context(), o,
-				fmt.Sprintf("notes/%d/index", assetID))
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequirePositiveInt("--asset-id", assetID)
+			}, func(ctx context.Context) error {
+				return run.RunGetByPath(ctx, o, fmt.Sprintf("notes/%d/index", assetID))
+			})
 		},
 	}
 	cmd.Flags().IntVar(&assetID, "asset-id", 0, "Asset (hardware) ID (required)")
@@ -55,18 +53,15 @@ func buildCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "資産にノートを追加する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--asset-id", assetID); err != nil {
-				return err
-			}
-			payload, err := run.JSONBytes(data)
-			if err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("notes/%d/store", assetID), payload)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequirePositiveInt("--asset-id", assetID)
+			}, func(ctx context.Context) error {
+				payload, err := run.JSONBytes(data)
+				if err != nil {
+					return err
+				}
+				return run.RunPostByPath(ctx, o, fmt.Sprintf("notes/%d/store", assetID), payload)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&assetID, "asset-id", 0, "Asset (hardware) ID (required)")

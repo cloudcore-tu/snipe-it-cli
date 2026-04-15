@@ -3,6 +3,7 @@
 package fields
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
@@ -36,21 +37,18 @@ func buildAssociateCmd() *cobra.Command {
 		Use:   "associate",
 		Short: "フィールドをフィールドセットに関連付ける",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--id", id); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--fieldset-id", fieldsetID); err != nil {
-				return err
-			}
-			body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
-			if err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("fields/%d/associate", id), body)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				if err := run.RequirePositiveInt("--id", id); err != nil {
+					return err
+				}
+				return run.RequirePositiveInt("--fieldset-id", fieldsetID)
+			}, func(ctx context.Context) error {
+				body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
+				if err != nil {
+					return err
+				}
+				return run.RunPostByPath(ctx, o, fmt.Sprintf("fields/%d/associate", id), body)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Field ID (required)")
@@ -67,21 +65,18 @@ func buildDisassociateCmd() *cobra.Command {
 		Use:   "disassociate",
 		Short: "フィールドをフィールドセットから切り離す",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--id", id); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--fieldset-id", fieldsetID); err != nil {
-				return err
-			}
-			body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
-			if err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("fields/%d/disassociate", id), body)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				if err := run.RequirePositiveInt("--id", id); err != nil {
+					return err
+				}
+				return run.RequirePositiveInt("--fieldset-id", fieldsetID)
+			}, func(ctx context.Context) error {
+				body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
+				if err != nil {
+					return err
+				}
+				return run.RunPostByPath(ctx, o, fmt.Sprintf("fields/%d/disassociate", id), body)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Field ID (required)")
@@ -101,18 +96,15 @@ func buildReorderCmd() *cobra.Command {
 		Use:   "reorder",
 		Short: "フィールドセット内のフィールド並び順を更新する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequirePositiveInt("--fieldset-id", fieldsetID); err != nil {
-				return err
-			}
-			payload, err := run.JSONBytes(data)
-			if err != nil {
-				return err
-			}
-			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("fields/fieldsets/%d/order", fieldsetID), payload)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequirePositiveInt("--fieldset-id", fieldsetID)
+			}, func(ctx context.Context) error {
+				payload, err := run.JSONBytes(data)
+				if err != nil {
+					return err
+				}
+				return run.RunPostByPath(ctx, o, fmt.Sprintf("fields/fieldsets/%d/order", fieldsetID), payload)
+			})
 		},
 	}
 	cmd.Flags().IntVar(&fieldsetID, "fieldset-id", 0, "Fieldset ID (required)")

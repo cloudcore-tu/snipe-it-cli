@@ -3,6 +3,8 @@
 package assets
 
 import (
+	"context"
+
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
 	"github.com/spf13/cobra"
 )
@@ -65,13 +67,11 @@ func buildByTagCmd() *cobra.Command {
 		Use:   "bytag",
 		Short: "資産タグで資産を取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequireNonEmpty("--tag", tag); err != nil {
-				return err
-			}
-			return run.RunGetByPath(cmd.Context(), o, "hardware/bytag/"+tag)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequireNonEmpty("--tag", tag)
+			}, func(ctx context.Context) error {
+				return run.RunGetByPath(ctx, o, "hardware/bytag/"+tag)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&tag, "tag", "", "Asset tag (required)")
@@ -87,13 +87,11 @@ func buildBySerialCmd() *cobra.Command {
 		Use:   "byserial",
 		Short: "シリアル番号で資産を取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := run.RequireNonEmpty("--serial", serial); err != nil {
-				return err
-			}
-			return run.RunGetByPath(cmd.Context(), o, "hardware/byserial/"+serial)
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequireNonEmpty("--serial", serial)
+			}, func(ctx context.Context) error {
+				return run.RunGetByPath(ctx, o, "hardware/byserial/"+serial)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&serial, "serial", "", "Serial number (required)")

@@ -80,16 +80,15 @@ func (r *ResourceDef) buildListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List " + r.Use,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if o.limit < 1 || o.limit > 1000 {
-				return fmt.Errorf("--limit must be between 1 and 1000")
-			}
-			if o.offset < 0 {
-				return fmt.Errorf("--offset must be 0 or greater")
-			}
-			return o.runList(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				if o.limit < 1 || o.limit > 1000 {
+					return fmt.Errorf("--limit must be between 1 and 1000")
+				}
+				if o.offset < 0 {
+					return fmt.Errorf("--offset must be 0 or greater")
+				}
+				return nil
+			}, o.runList)
 		},
 	}
 
@@ -132,13 +131,9 @@ func (r *ResourceDef) buildGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "Get " + r.Use + " by ID",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := RequirePositiveInt("--id", o.id); err != nil {
-				return err
-			}
-			return o.runGet(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return RequirePositiveInt("--id", o.id)
+			}, o.runGet)
 		},
 	}
 
@@ -171,10 +166,7 @@ func (r *ResourceDef) buildCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create " + r.Use,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			return o.runCreate(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, nil, o.runCreate)
 		},
 	}
 
@@ -213,13 +205,9 @@ func (r *ResourceDef) buildUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "Update " + r.Use + " (PATCH)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := RequirePositiveInt("--id", o.id); err != nil {
-				return err
-			}
-			return o.runUpdate(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return RequirePositiveInt("--id", o.id)
+			}, o.runUpdate)
 		},
 	}
 
@@ -260,13 +248,9 @@ func (r *ResourceDef) buildDeleteCmd() *cobra.Command {
 		Use:   "delete",
 		Short: "Delete " + r.Use,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := RequirePositiveInt("--id", o.id); err != nil {
-				return err
-			}
-			return o.runDelete(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return RequirePositiveInt("--id", o.id)
+			}, o.runDelete)
 		},
 	}
 
@@ -305,13 +289,9 @@ func (r *ResourceDef) buildActionCmd(actionDef ActionDef) *cobra.Command {
 		Use:   actionDef.Use,
 		Short: actionDef.Short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := RequirePositiveInt("--id", o.id); err != nil {
-				return err
-			}
-			return o.runAction(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return RequirePositiveInt("--id", o.id)
+			}, o.runAction)
 		},
 	}
 
@@ -374,13 +354,9 @@ func BuildSubReadCmd(use, short, parentAPIPath, subPath string) *cobra.Command {
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			if err := RequirePositiveInt("--id", o.id); err != nil {
-				return err
-			}
-			return o.run(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return RequirePositiveInt("--id", o.id)
+			}, o.run)
 		},
 	}
 	cmd.Flags().IntVar(&o.id, "id", 0, "Resource ID (required)")
@@ -422,10 +398,7 @@ func BuildPathReadCmd(use, short, apiPath string) *cobra.Command {
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := o.Complete(cmd); err != nil {
-				return err
-			}
-			return o.run(cmd.Context())
+			return CompleteValidateRun(cmd, &o.BaseOptions, nil, o.run)
 		},
 	}
 }

@@ -3,6 +3,7 @@
 package run
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -86,6 +87,25 @@ func (o *BaseOptions) Complete(cmd *cobra.Command) error {
 	}
 	o.Client = client
 	return nil
+}
+
+// CompleteValidateRun は BaseOptions を使う command の共通制御。
+// Complete -> Validate -> Run の契約を 1 か所に閉じ込める。
+func CompleteValidateRun(
+	cmd *cobra.Command,
+	o *BaseOptions,
+	validate func() error,
+	run func(context.Context) error,
+) error {
+	if err := o.Complete(cmd); err != nil {
+		return err
+	}
+	if validate != nil {
+		if err := validate(); err != nil {
+			return err
+		}
+	}
+	return run(cmd.Context())
 }
 
 // ParseFilters は "key=value" 形式の文字列スライスを map[string][]string に変換する。
