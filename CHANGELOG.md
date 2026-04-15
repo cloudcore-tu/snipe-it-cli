@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Homebrew tap 更新 workflow を GitHub App 依存から `HOMEBREW_TAP_TOKEN` secret ベースに変更
+- 既存 release tag を後追い同期できる manual Homebrew formula sync workflow を追加
+
 ## [1.0.1] - 2026-04-15
 
 ### Added
