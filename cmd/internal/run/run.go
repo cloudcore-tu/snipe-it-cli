@@ -33,6 +33,28 @@ func (o *BaseOptions) Stdout() io.Writer {
 	return os.Stdout
 }
 
+func (o *BaseOptions) printer() (*output.Printer, error) {
+	return o.PrintFlags.NewPrinter(o.Stdout())
+}
+
+// PrintValue は初期化済みの出力設定で値を描画する。
+func (o *BaseOptions) PrintValue(v any) error {
+	printer, err := o.printer()
+	if err != nil {
+		return err
+	}
+	return printer.Print(v)
+}
+
+// PrintResponse は JSON レスポンスをデコードして出力する。
+func (o *BaseOptions) PrintResponse(raw []byte) error {
+	var result any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return err
+	}
+	return o.PrintValue(result)
+}
+
 // Complete はグローバルフラグ・環境変数・設定ファイルをマージして BaseOptions を初期化する。
 func (o *BaseOptions) Complete(cmd *cobra.Command) error {
 	profile, _ := cmd.Root().PersistentFlags().GetString("profile")
@@ -95,6 +117,32 @@ func UnmarshalJSON(data string) (map[string]any, error) {
 	return v, nil
 }
 
+// ValidateJSON は JSON 文字列として妥当かを検証する。
+func ValidateJSON(data string) error {
+	var v any
+	if err := json.Unmarshal([]byte(data), &v); err != nil {
+		return fmt.Errorf("failed to parse JSON: %w", err)
+	}
+	return nil
+}
+
+// JSONBytes は JSON 文字列を検証してそのまま []byte にして返す。
+func JSONBytes(data string) ([]byte, error) {
+	if err := ValidateJSON(data); err != nil {
+		return nil, err
+	}
+	return []byte(data), nil
+}
+
+// MarshalJSONData は値を JSON に変換する。
+func MarshalJSONData(v any) ([]byte, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	return data, nil
+}
+
 // RequireDeleteConfirmation は --yes なしの削除操作をブロックする。
 // 誤削除防止のためすべての delete コマンドで呼び出す。
 // 対話的なプロンプトは出さず、--yes フラグで確認を明示させる（エージェント対応）。
@@ -111,4 +159,20 @@ func FormatAPIError(err error) error {
 		return nil
 	}
 	return fmt.Errorf("%w", err)
+}
+
+// RequirePositiveInt は整数フラグが正の値であることを保証する。
+func RequirePositiveInt(flagName string, value int) error {
+	if value > 0 {
+		return nil
+	}
+	return fmt.Errorf("%s must be a positive integer", flagName)
+}
+
+// RequireNonEmpty は文字列フラグが空でないことを保証する。
+func RequireNonEmpty(flagName, value string) error {
+	if strings.TrimSpace(value) != "" {
+		return nil
+	}
+	return fmt.Errorf("%s must not be empty", flagName)
 }

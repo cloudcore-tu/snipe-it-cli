@@ -68,8 +68,8 @@ func buildByTagCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if tag == "" {
-				return cmd.Usage()
+			if err := run.RequireNonEmpty("--tag", tag); err != nil {
+				return err
 			}
 			return run.RunGetByPath(cmd.Context(), o, "hardware/bytag/"+tag)
 		},
@@ -90,8 +90,8 @@ func buildBySerialCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if serial == "" {
-				return cmd.Usage()
+			if err := run.RequireNonEmpty("--serial", serial); err != nil {
+				return err
 			}
 			return run.RunGetByPath(cmd.Context(), o, "hardware/byserial/"+serial)
 		},

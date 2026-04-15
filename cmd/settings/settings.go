@@ -42,10 +42,11 @@ func buildUpdateCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if _, err := run.UnmarshalJSON(data); err != nil {
+			payload, err := run.JSONBytes(data)
+			if err != nil {
 				return err
 			}
-			return run.RunPostByPath(cmd.Context(), o, "settings", []byte(data))
+			return run.RunPostByPath(cmd.Context(), o, "settings", payload)
 		},
 	}
 	cmd.Flags().StringVar(&data, "data", "", "JSON data for settings fields to update (required)")

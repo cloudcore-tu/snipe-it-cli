@@ -40,8 +40,8 @@ func newInitCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("Config file created: %s\n", path)
-			fmt.Printf("Active instance: %s\n", name)
+			fmt.Fprintf(cmd.OutOrStdout(), "Config file created: %s\n", path)
+			fmt.Fprintf(cmd.OutOrStdout(), "Active instance: %s\n", name)
 			return nil
 		},
 	}

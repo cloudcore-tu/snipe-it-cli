@@ -44,7 +44,7 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("Instance %q added/updated.\n", name)
+			fmt.Fprintf(cmd.OutOrStdout(), "Instance %q added/updated.\n", name)
 			return nil
 		},
 	}
