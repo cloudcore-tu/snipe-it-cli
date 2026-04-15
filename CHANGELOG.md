@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-15
+
+### Added
+
+- ローカル Snipe-IT を clean state から起動し、setup・token 作成・smoke・cleanup までを一撃で行う `scripts/snipeit-local-e2e.sh`
+- Docker 上で `snip` 自体を実行する local E2E 検証フロー
+
+### Changed
+
+- ローカル検証手順を host 実行前提から dockerized `snip` smoke 前提に更新
+- 0.x 系の試作段階を終え、CLI を `1.0.0` としてリリース可能な状態に整理
+
 ## [0.3.0] - 2026-04-14
 
 ### Added

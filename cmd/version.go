@@ -8,7 +8,7 @@ import (
 )
 
 // version は ldflags で注入する。
-// go build -ldflags "-X github.com/cloudcore-tu/snipe-it-cli/cmd.version=v0.1.0"
+// go build -ldflags "-X github.com/cloudcore-tu/snipe-it-cli/cmd.version=v1.0.0"
 var version = "dev"
 
 // versionInfo は version コマンドの出力構造体。
