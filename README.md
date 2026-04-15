@@ -297,25 +297,25 @@ snip completion fish > ~/.config/fish/completions/snip.fish
 ## ローカル Snipe-IT でのテスト
 
 ```bash
-docker compose up -d
-
-# 初回のみ: DB を初期化
-docker compose exec snipeit php artisan migrate --force
-
-# 初回のみ: ローカル管理者を作成
-docker compose exec snipeit php artisan snipeit:create-admin \
-  --first_name=Local \
-  --last_name=Admin \
-  --email=admin@example.com \
-  --username=admin \
-  --password=password
+bash scripts/snipeit-local-e2e.sh
 ```
 
-その後、ブラウザで `http://localhost:18080` を開き、`admin` / `password` でログインして API トークンを発行する。
+このスクリプトは以下をまとめて行う:
+
+- `docker compose down -v` で既存ローカル環境を初期化
+- `docker compose up -d` で Snipe-IT を起動
+- setup wizard を HTTP 経由で完走
+- API トークンを自動準備
+- `bash scripts/snipeit-local-smoke.sh` を実行
+- 終了時に `docker compose down -v` でクリーンアップ
+
+手動でデバッグしたい場合:
 
 ```bash
-export SNIPEIT_TOKEN=PASTE_LOCAL_API_TOKEN
-bash scripts/snipeit-local-smoke.sh
+docker compose up -d
+
+# ブラウザで http://localhost:18080/setup を開いてセットアップ完了
+docker compose exec snipeit php artisan snipeit:make-api-key --user_id=1 --name=local-smoke --key-only
 ```
 
 終了:
