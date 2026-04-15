@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-04-15
+
 ### Changed
 
 - Homebrew tap 更新 workflow を GitHub App 依存から `HOMEBREW_TAP_TOKEN` secret ベースに変更
