@@ -39,9 +39,18 @@ func buildAssociateCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			body := fmt.Sprintf(`{"fieldset_id":%d}`, fieldsetID)
+			if err := run.RequirePositiveInt("--id", id); err != nil {
+				return err
+			}
+			if err := run.RequirePositiveInt("--fieldset-id", fieldsetID); err != nil {
+				return err
+			}
+			body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
+			if err != nil {
+				return err
+			}
 			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("fields/%d/associate", id), []byte(body))
+				fmt.Sprintf("fields/%d/associate", id), body)
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Field ID (required)")
@@ -61,9 +70,18 @@ func buildDisassociateCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			body := fmt.Sprintf(`{"fieldset_id":%d}`, fieldsetID)
+			if err := run.RequirePositiveInt("--id", id); err != nil {
+				return err
+			}
+			if err := run.RequirePositiveInt("--fieldset-id", fieldsetID); err != nil {
+				return err
+			}
+			body, err := run.MarshalJSONData(map[string]int{"fieldset_id": fieldsetID})
+			if err != nil {
+				return err
+			}
 			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("fields/%d/disassociate", id), []byte(body))
+				fmt.Sprintf("fields/%d/disassociate", id), body)
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Field ID (required)")
@@ -86,8 +104,15 @@ func buildReorderCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
+			if err := run.RequirePositiveInt("--fieldset-id", fieldsetID); err != nil {
+				return err
+			}
+			payload, err := run.JSONBytes(data)
+			if err != nil {
+				return err
+			}
 			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("fields/fieldsets/%d/order", fieldsetID), []byte(data))
+				fmt.Sprintf("fields/fieldsets/%d/order", fieldsetID), payload)
 		},
 	}
 	cmd.Flags().IntVar(&fieldsetID, "fieldset-id", 0, "Fieldset ID (required)")

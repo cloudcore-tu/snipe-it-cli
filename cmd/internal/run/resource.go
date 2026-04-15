@@ -7,7 +7,6 @@ package run
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -115,18 +114,7 @@ func (o *genericListOptions) runList(ctx context.Context) error {
 	if err != nil {
 		return FormatAPIError(err)
 	}
-
-	// 生 JSON を any として表現してプリンターに渡す
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // --- get ---
@@ -147,8 +135,8 @@ func (r *ResourceDef) buildGetCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if o.id <= 0 {
-				return fmt.Errorf("--id must be a positive integer")
+			if err := RequirePositiveInt("--id", o.id); err != nil {
+				return err
 			}
 			return o.runGet(cmd.Context())
 		},
@@ -165,17 +153,7 @@ func (o *genericGetOptions) runGet(ctx context.Context) error {
 	if err != nil {
 		return FormatAPIError(err)
 	}
-
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // --- create ---
@@ -207,26 +185,16 @@ func (r *ResourceDef) buildCreateCmd() *cobra.Command {
 }
 
 func (o *genericCreateOptions) runCreate(ctx context.Context) error {
-	// JSON の妥当性チェック
-	if _, err := UnmarshalJSON(o.data); err != nil {
+	data, err := JSONBytes(o.data)
+	if err != nil {
 		return err
 	}
 
-	raw, err := o.Client.Create(ctx, o.apiPath, []byte(o.data))
+	raw, err := o.Client.Create(ctx, o.apiPath, data)
 	if err != nil {
 		return FormatAPIError(err)
 	}
-
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // --- update ---
@@ -248,8 +216,8 @@ func (r *ResourceDef) buildUpdateCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if o.id <= 0 {
-				return fmt.Errorf("--id must be a positive integer")
+			if err := RequirePositiveInt("--id", o.id); err != nil {
+				return err
 			}
 			return o.runUpdate(cmd.Context())
 		},
@@ -264,25 +232,16 @@ func (r *ResourceDef) buildUpdateCmd() *cobra.Command {
 }
 
 func (o *genericUpdateOptions) runUpdate(ctx context.Context) error {
-	if _, err := UnmarshalJSON(o.data); err != nil {
+	data, err := JSONBytes(o.data)
+	if err != nil {
 		return err
 	}
 
-	raw, err := o.Client.Update(ctx, o.apiPath, o.id, []byte(o.data))
+	raw, err := o.Client.Update(ctx, o.apiPath, o.id, data)
 	if err != nil {
 		return FormatAPIError(err)
 	}
-
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // --- delete ---
@@ -304,8 +263,8 @@ func (r *ResourceDef) buildDeleteCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if o.id <= 0 {
-				return fmt.Errorf("--id must be a positive integer")
+			if err := RequirePositiveInt("--id", o.id); err != nil {
+				return err
 			}
 			return o.runDelete(cmd.Context())
 		},
@@ -326,11 +285,7 @@ func (o *genericDeleteOptions) runDelete(ctx context.Context) error {
 	if err := o.Client.Delete(ctx, o.apiPath, o.id); err != nil {
 		return FormatAPIError(err)
 	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(map[string]any{"deleted": true, "id": o.id})
+	return o.PrintValue(map[string]any{"deleted": true, "id": o.id})
 }
 
 // --- action (checkout/checkin 等) ---
@@ -353,8 +308,8 @@ func (r *ResourceDef) buildActionCmd(actionDef ActionDef) *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if o.id <= 0 {
-				return fmt.Errorf("--id must be a positive integer")
+			if err := RequirePositiveInt("--id", o.id); err != nil {
+				return err
 			}
 			return o.runAction(cmd.Context())
 		},
@@ -374,27 +329,18 @@ func (r *ResourceDef) buildActionCmd(actionDef ActionDef) *cobra.Command {
 func (o *genericActionOptions) runAction(ctx context.Context) error {
 	var dataBytes []byte
 	if o.data != "" {
-		if _, err := UnmarshalJSON(o.data); err != nil {
+		var err error
+		dataBytes, err = JSONBytes(o.data)
+		if err != nil {
 			return err
 		}
-		dataBytes = []byte(o.data)
 	}
 
 	raw, err := o.Client.PostAction(ctx, o.apiPath, o.id, o.action, dataBytes)
 	if err != nil {
 		return FormatAPIError(err)
 	}
-
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // --- サブリソース取得ヘルパー ---
@@ -414,15 +360,7 @@ func (o *subReadOptions) run(ctx context.Context) error {
 	if err != nil {
 		return FormatAPIError(err)
 	}
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // BuildSubReadCmd は "snip {resource} {use} --id N" コマンドを生成する。
@@ -439,8 +377,8 @@ func BuildSubReadCmd(use, short, parentAPIPath, subPath string) *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if o.id <= 0 {
-				return fmt.Errorf("--id must be a positive integer")
+			if err := RequirePositiveInt("--id", o.id); err != nil {
+				return err
 			}
 			return o.run(cmd.Context())
 		},
@@ -461,15 +399,7 @@ func (o *pathReadOptions) run(ctx context.Context) error {
 	if err != nil {
 		return FormatAPIError(err)
 	}
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // RunGetByPath は初期化済みの BaseOptions を使って GET /api/v1/{urlPath} を実行し結果を出力する。
@@ -479,15 +409,7 @@ func RunGetByPath(ctx context.Context, o *BaseOptions, urlPath string) error {
 	if err != nil {
 		return FormatAPIError(err)
 	}
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // BuildPathReadCmd は固定 API パスに GET する引数なしコマンドを生成する。
@@ -511,22 +433,15 @@ func BuildPathReadCmd(use, short, apiPath string) *cobra.Command {
 // RunPatchByPath は初期化済みの BaseOptions を使って PATCH /api/v1/{urlPath} を実行し結果を出力する。
 // ライセンスシート等の入れ子 PATCH エンドポイントに使用する。
 func RunPatchByPath(ctx context.Context, o *BaseOptions, urlPath, data string) error {
-	if _, err := UnmarshalJSON(data); err != nil {
+	payload, err := JSONBytes(data)
+	if err != nil {
 		return err
 	}
-	raw, err := o.Client.PatchByPath(ctx, urlPath, []byte(data))
+	raw, err := o.Client.PatchByPath(ctx, urlPath, payload)
 	if err != nil {
 		return FormatAPIError(err)
 	}
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // RunPostByPath は初期化済みの BaseOptions を使って POST /api/v1/{urlPath} を実行し結果を出力する。
@@ -536,15 +451,7 @@ func RunPostByPath(ctx context.Context, o *BaseOptions, urlPath string, data []b
 	if err != nil {
 		return FormatAPIError(err)
 	}
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // RunDeleteByPath は初期化済みの BaseOptions を使って DELETE /api/v1/{urlPath} を実行する。
@@ -553,11 +460,7 @@ func RunDeleteByPath(ctx context.Context, o *BaseOptions, urlPath string, id int
 	if err := o.Client.DeleteByPath(ctx, urlPath); err != nil {
 		return FormatAPIError(err)
 	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(map[string]any{"deleted": true, "id": id})
+	return o.PrintValue(map[string]any{"deleted": true, "id": id})
 }
 
 // RunUpload は multipart/form-data でファイルをアップロードし結果を出力する。
@@ -567,15 +470,7 @@ func RunUpload(ctx context.Context, o *BaseOptions, urlPath, fieldName, filePath
 	if err != nil {
 		return FormatAPIError(err)
 	}
-	var result any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return err
-	}
-	printer, err := o.PrintFlags.NewPrinter(o.Stdout())
-	if err != nil {
-		return err
-	}
-	return printer.Print(result)
+	return o.PrintResponse(raw)
 }
 
 // RunSaveBinary は GET /api/v1/{urlPath} のレスポンスをバイナリとして保存する。

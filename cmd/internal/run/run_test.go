@@ -82,6 +82,22 @@ func TestUnmarshalJSON_Array(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestValidateJSON_Array(t *testing.T) {
+	err := run.ValidateJSON(`[1,2,3]`)
+	assert.NoError(t, err)
+}
+
+func TestJSONBytes_Invalid(t *testing.T) {
+	_, err := run.JSONBytes(`{not valid json}`)
+	assert.Error(t, err)
+}
+
+func TestMarshalJSONData(t *testing.T) {
+	data, err := run.MarshalJSONData(map[string]int{"fieldset_id": 3})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"fieldset_id":3}`, string(data))
+}
+
 // --- RequireDeleteConfirmation ---
 
 func TestRequireDeleteConfirmation_WithYes(t *testing.T) {
@@ -103,4 +119,18 @@ func TestFormatAPIError_Nil(t *testing.T) {
 func TestFormatAPIError_WrapsError(t *testing.T) {
 	err := run.FormatAPIError(assert.AnError)
 	assert.Error(t, err)
+}
+
+func TestRequirePositiveInt(t *testing.T) {
+	assert.NoError(t, run.RequirePositiveInt("--id", 1))
+	err := run.RequirePositiveInt("--id", 0)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--id")
+}
+
+func TestRequireNonEmpty(t *testing.T) {
+	assert.NoError(t, run.RequireNonEmpty("--tag", "asset-001"))
+	err := run.RequireNonEmpty("--tag", " ")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--tag")
 }

@@ -33,6 +33,9 @@ func buildListCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
+			if err := run.RequirePositiveInt("--asset-id", assetID); err != nil {
+				return err
+			}
 			return run.RunGetByPath(cmd.Context(), o,
 				fmt.Sprintf("notes/%d/index", assetID))
 		},
@@ -55,11 +58,15 @@ func buildCreateCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if _, err := run.UnmarshalJSON(data); err != nil {
+			if err := run.RequirePositiveInt("--asset-id", assetID); err != nil {
+				return err
+			}
+			payload, err := run.JSONBytes(data)
+			if err != nil {
 				return err
 			}
 			return run.RunPostByPath(cmd.Context(), o,
-				fmt.Sprintf("notes/%d/store", assetID), []byte(data))
+				fmt.Sprintf("notes/%d/store", assetID), payload)
 		},
 	}
 	cmd.Flags().IntVar(&assetID, "asset-id", 0, "Asset (hardware) ID (required)")

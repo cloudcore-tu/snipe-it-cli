@@ -3,7 +3,7 @@
 package account
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
 	"github.com/spf13/cobra"
@@ -61,8 +61,11 @@ func buildRequestCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
+			if err := run.RequirePositiveInt("--id", id); err != nil {
+				return err
+			}
 			return run.RunPostByPath(cmd.Context(), o,
-				"account/request/"+itoa(id), nil)
+				"account/request/"+strconv.Itoa(id), nil)
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Asset ID to request (required)")
@@ -80,8 +83,11 @@ func buildCancelRequestCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
+			if err := run.RequirePositiveInt("--id", id); err != nil {
+				return err
+			}
 			return run.RunPostByPath(cmd.Context(), o,
-				"account/request/"+itoa(id)+"/cancel", nil)
+				"account/request/"+strconv.Itoa(id)+"/cancel", nil)
 		},
 	}
 	cmd.Flags().IntVar(&id, "id", 0, "Asset ID to cancel request for (required)")
@@ -99,11 +105,12 @@ func buildTokenCreateCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
-			if _, err := run.UnmarshalJSON(data); err != nil {
+			payload, err := run.JSONBytes(data)
+			if err != nil {
 				return err
 			}
 			return run.RunPostByPath(cmd.Context(), o,
-				"account/personal-access-tokens", []byte(data))
+				"account/personal-access-tokens", payload)
 		},
 	}
 	cmd.Flags().StringVar(&data, "data", "", `JSON data, e.g. {"name":"my-token"} (required)`)
@@ -121,15 +128,14 @@ func buildTokenDeleteCmd() *cobra.Command {
 			if err := o.Complete(cmd); err != nil {
 				return err
 			}
+			if err := run.RequirePositiveInt("--token-id", tokenID); err != nil {
+				return err
+			}
 			return run.RunDeleteByPath(cmd.Context(), o,
-				"account/personal-access-tokens/"+itoa(tokenID), tokenID)
+				"account/personal-access-tokens/"+strconv.Itoa(tokenID), tokenID)
 		},
 	}
 	cmd.Flags().IntVar(&tokenID, "token-id", 0, "Token ID to delete (required)")
 	cmd.MarkFlagRequired("token-id") //nolint:errcheck
 	return cmd
-}
-
-func itoa(n int) string {
-	return fmt.Sprintf("%d", n)
 }
