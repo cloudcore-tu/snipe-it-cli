@@ -33,7 +33,7 @@ func buildGetCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, o, func() error {
 				return run.RequireNonEmpty("--name", name)
 			}, func(ctx context.Context) error {
-				return run.RunSaveBinary(ctx, o, "labels/"+name, outputFile)
+				return run.RunSaveBinaryBySegments(ctx, o, outputFile, "labels", name)
 			})
 		},
 	}

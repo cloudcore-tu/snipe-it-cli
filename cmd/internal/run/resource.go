@@ -8,8 +8,6 @@ package run
 import (
 	"context"
 	"fmt"
-	"os"
-
 	"github.com/cloudcore-tu/snipe-it-cli/internal/snipeit"
 	"github.com/spf13/cobra"
 )
@@ -35,11 +33,18 @@ type ResourceDef struct {
 	// APIPath は API のリソースパス（例: "hardware", "users", "licenses"）
 	APIPath string
 
+	// ExcludeSubCmds は BuildCmd() が生成しないサブコマンド名のリスト。
+	// 例: []string{"create"} — 標準 create を除外してカスタム実装に差し替える場合
+	ExcludeSubCmds []string
+
 	// ActionFns は標準 CRUD 以外の追加アクションコマンドを定義する
 	ActionFns []ActionDef
 }
 
 // BuildCmd は ResourceDef から cobra.Command（親コマンド＋サブコマンド群）を生成する。
+//
+// 前提条件なし。APIPath が空の場合はサブコマンド（list/get/create/update/delete/ActionFns）を生成しない。
+// ExcludeSubCmds に指定した名前のサブコマンドはスキップされる（カスタム実装で差し替える場合）。
 func (r *ResourceDef) BuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   r.Use,
@@ -50,14 +55,28 @@ func (r *ResourceDef) BuildCmd() *cobra.Command {
 	}
 
 	if r.APIPath != "" {
-		cmd.AddCommand(r.buildListCmd())
-		cmd.AddCommand(r.buildGetCmd())
-		cmd.AddCommand(r.buildCreateCmd())
-		cmd.AddCommand(r.buildUpdateCmd())
-		cmd.AddCommand(r.buildDeleteCmd())
-	}
-	for _, action := range r.ActionFns {
-		cmd.AddCommand(r.buildActionCmd(action))
+		excluded := make(map[string]bool, len(r.ExcludeSubCmds))
+		for _, name := range r.ExcludeSubCmds {
+			excluded[name] = true
+		}
+		if !excluded["list"] {
+			cmd.AddCommand(r.buildListCmd())
+		}
+		if !excluded["get"] {
+			cmd.AddCommand(r.buildGetCmd())
+		}
+		if !excluded["create"] {
+			cmd.AddCommand(r.buildCreateCmd())
+		}
+		if !excluded["update"] {
+			cmd.AddCommand(r.buildUpdateCmd())
+		}
+		if !excluded["delete"] {
+			cmd.AddCommand(r.buildDeleteCmd())
+		}
+		for _, action := range r.ActionFns {
+			cmd.AddCommand(r.buildActionCmd(action))
+		}
 	}
 
 	return cmd
@@ -111,7 +130,7 @@ func (o *genericListOptions) runList(ctx context.Context) error {
 		Filters: filters,
 	})
 	if err != nil {
-		return FormatAPIError(err)
+		return err
 	}
 	return o.PrintResponse(raw)
 }
@@ -146,7 +165,7 @@ func (r *ResourceDef) buildGetCmd() *cobra.Command {
 func (o *genericGetOptions) runGet(ctx context.Context) error {
 	raw, err := o.Client.GetByID(ctx, o.apiPath, o.id)
 	if err != nil {
-		return FormatAPIError(err)
+		return err
 	}
 	return o.PrintResponse(raw)
 }
@@ -166,7 +185,9 @@ func (r *ResourceDef) buildCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create " + r.Use,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return CompleteValidateRun(cmd, &o.BaseOptions, nil, o.runCreate)
+			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return RequireValidJSON("--data", o.data)
+			}, o.runCreate)
 		},
 	}
 
@@ -177,14 +198,9 @@ func (r *ResourceDef) buildCreateCmd() *cobra.Command {
 }
 
 func (o *genericCreateOptions) runCreate(ctx context.Context) error {
-	data, err := JSONBytes(o.data)
+	raw, err := o.Client.Create(ctx, o.apiPath, []byte(o.data))
 	if err != nil {
 		return err
-	}
-
-	raw, err := o.Client.Create(ctx, o.apiPath, data)
-	if err != nil {
-		return FormatAPIError(err)
 	}
 	return o.PrintResponse(raw)
 }
@@ -206,7 +222,10 @@ func (r *ResourceDef) buildUpdateCmd() *cobra.Command {
 		Short: "Update " + r.Use + " (PATCH)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
-				return RequirePositiveInt("--id", o.id)
+				return RequireAll(
+					RequirePositiveInt("--id", o.id),
+					RequireValidJSON("--data", o.data),
+				)
 			}, o.runUpdate)
 		},
 	}
@@ -220,14 +239,9 @@ func (r *ResourceDef) buildUpdateCmd() *cobra.Command {
 }
 
 func (o *genericUpdateOptions) runUpdate(ctx context.Context) error {
-	data, err := JSONBytes(o.data)
+	raw, err := o.Client.Update(ctx, o.apiPath, o.id, []byte(o.data))
 	if err != nil {
 		return err
-	}
-
-	raw, err := o.Client.Update(ctx, o.apiPath, o.id, data)
-	if err != nil {
-		return FormatAPIError(err)
 	}
 	return o.PrintResponse(raw)
 }
@@ -249,7 +263,10 @@ func (r *ResourceDef) buildDeleteCmd() *cobra.Command {
 		Short: "Delete " + r.Use,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
-				return RequirePositiveInt("--id", o.id)
+				return RequireAll(
+					RequirePositiveInt("--id", o.id),
+					RequireDeleteConfirmation(o.yes),
+				)
 			}, o.runDelete)
 		},
 	}
@@ -263,11 +280,8 @@ func (r *ResourceDef) buildDeleteCmd() *cobra.Command {
 }
 
 func (o *genericDeleteOptions) runDelete(ctx context.Context) error {
-	if err := RequireDeleteConfirmation(o.yes); err != nil {
-		return err
-	}
 	if err := o.Client.Delete(ctx, o.apiPath, o.id); err != nil {
-		return FormatAPIError(err)
+		return err
 	}
 	return o.PrintValue(map[string]any{"deleted": true, "id": o.id})
 }
@@ -290,7 +304,13 @@ func (r *ResourceDef) buildActionCmd(actionDef ActionDef) *cobra.Command {
 		Short: actionDef.Short,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return CompleteValidateRun(cmd, &o.BaseOptions, func() error {
-				return RequirePositiveInt("--id", o.id)
+				if !actionDef.NeedsData {
+					return RequirePositiveInt("--id", o.id)
+				}
+				return RequireAll(
+					RequirePositiveInt("--id", o.id),
+					RequireValidJSON("--data", o.data),
+				)
 			}, o.runAction)
 		},
 	}
@@ -309,21 +329,17 @@ func (r *ResourceDef) buildActionCmd(actionDef ActionDef) *cobra.Command {
 func (o *genericActionOptions) runAction(ctx context.Context) error {
 	var dataBytes []byte
 	if o.data != "" {
-		var err error
-		dataBytes, err = JSONBytes(o.data)
-		if err != nil {
-			return err
-		}
+		dataBytes = []byte(o.data)
 	}
 
 	raw, err := o.Client.PostAction(ctx, o.apiPath, o.id, o.action, dataBytes)
 	if err != nil {
-		return FormatAPIError(err)
+		return err
 	}
 	return o.PrintResponse(raw)
 }
 
-// --- サブリソース取得ヘルパー ---
+// --- サブリソース取得コマンドビルダー ---
 // BuildSubReadCmd と BuildPathReadCmd は ResourceDef を拡張せず、
 // 各リソースパッケージから明示的に呼ばれるヘルパー関数として提供する。
 
@@ -338,7 +354,7 @@ type subReadOptions struct {
 func (o *subReadOptions) run(ctx context.Context) error {
 	raw, err := o.Client.GetSub(ctx, o.parentPath, o.id, o.subPath)
 	if err != nil {
-		return FormatAPIError(err)
+		return err
 	}
 	return o.PrintResponse(raw)
 }
@@ -373,17 +389,7 @@ type pathReadOptions struct {
 func (o *pathReadOptions) run(ctx context.Context) error {
 	raw, err := o.Client.GetByPath(ctx, o.urlPath)
 	if err != nil {
-		return FormatAPIError(err)
-	}
-	return o.PrintResponse(raw)
-}
-
-// RunGetByPath は初期化済みの BaseOptions を使って GET /api/v1/{urlPath} を実行し結果を出力する。
-// 各パッケージで文字列フラグからパスを組み立てるコマンドに使用する（bytag, byserial 等）。
-func RunGetByPath(ctx context.Context, o *BaseOptions, urlPath string) error {
-	raw, err := o.Client.GetByPath(ctx, urlPath)
-	if err != nil {
-		return FormatAPIError(err)
+		return err
 	}
 	return o.PrintResponse(raw)
 }
@@ -401,84 +407,4 @@ func BuildPathReadCmd(use, short, apiPath string) *cobra.Command {
 			return CompleteValidateRun(cmd, &o.BaseOptions, nil, o.run)
 		},
 	}
-}
-
-// RunPatchByPath は初期化済みの BaseOptions を使って PATCH /api/v1/{urlPath} を実行し結果を出力する。
-// ライセンスシート等の入れ子 PATCH エンドポイントに使用する。
-func RunPatchByPath(ctx context.Context, o *BaseOptions, urlPath, data string) error {
-	payload, err := JSONBytes(data)
-	if err != nil {
-		return err
-	}
-	raw, err := o.Client.PatchByPath(ctx, urlPath, payload)
-	if err != nil {
-		return FormatAPIError(err)
-	}
-	return o.PrintResponse(raw)
-}
-
-// RunPostJSONByPath は JSON 文字列を検証して POST /api/v1/{urlPath} を実行し結果を出力する。
-func RunPostJSONByPath(ctx context.Context, o *BaseOptions, urlPath, data string) error {
-	payload, err := JSONBytes(data)
-	if err != nil {
-		return err
-	}
-	return RunPostByPath(ctx, o, urlPath, payload)
-}
-
-// RunPostValueByPath は値を JSON 化して POST /api/v1/{urlPath} を実行し結果を出力する。
-func RunPostValueByPath(ctx context.Context, o *BaseOptions, urlPath string, value any) error {
-	payload, err := MarshalJSONData(value)
-	if err != nil {
-		return err
-	}
-	return RunPostByPath(ctx, o, urlPath, payload)
-}
-
-// RunPostByPath は初期化済みの BaseOptions を使って POST /api/v1/{urlPath} を実行し結果を出力する。
-// account/request 等の非 CRUD POST エンドポイントに使用する。
-func RunPostByPath(ctx context.Context, o *BaseOptions, urlPath string, data []byte) error {
-	raw, err := o.Client.PostByPath(ctx, urlPath, data)
-	if err != nil {
-		return FormatAPIError(err)
-	}
-	return o.PrintResponse(raw)
-}
-
-// RunDeleteByPath は初期化済みの BaseOptions を使って DELETE /api/v1/{urlPath} を実行する。
-// account/personal-access-tokens/{id} 等の非 CRUD DELETE に使用する。
-func RunDeleteByPath(ctx context.Context, o *BaseOptions, urlPath string, id int) error {
-	if err := o.Client.DeleteByPath(ctx, urlPath); err != nil {
-		return FormatAPIError(err)
-	}
-	return o.PrintValue(map[string]any{"deleted": true, "id": id})
-}
-
-// RunUpload は multipart/form-data でファイルをアップロードし結果を出力する。
-// Snipe-IT のインポート API に使用する。
-func RunUpload(ctx context.Context, o *BaseOptions, urlPath, fieldName, filePath string, extraFields map[string]string) error {
-	raw, err := o.Client.Upload(ctx, urlPath, fieldName, filePath, extraFields)
-	if err != nil {
-		return FormatAPIError(err)
-	}
-	return o.PrintResponse(raw)
-}
-
-// RunSaveBinary は GET /api/v1/{urlPath} のレスポンスをバイナリとして保存する。
-// outputFile が空の場合は標準出力に書き出す（パイプ利用を想定）。
-// JSON パースを行わないため、PDF 等のバイナリレスポンスに使用する。
-func RunSaveBinary(ctx context.Context, o *BaseOptions, urlPath, outputFile string) error {
-	raw, err := o.Client.GetByPath(ctx, urlPath)
-	if err != nil {
-		return FormatAPIError(err)
-	}
-	if outputFile != "" {
-		if err := os.WriteFile(outputFile, raw, 0o600); err != nil {
-			return fmt.Errorf("failed to write to %s: %w", outputFile, err)
-		}
-		fmt.Fprintf(o.Stdout(), "Saved %d bytes to %s\n", len(raw), outputFile)
-		return nil
-	}
-	_, err = o.Stdout().Write(raw)
-	return err
 }

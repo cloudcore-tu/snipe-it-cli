@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 )
@@ -39,8 +40,19 @@ type requestOptions struct {
 	extractPayload bool
 }
 
+// defaultTimeoutSec は timeoutSec が 0 以下のときに使うフォールバック値。
+const defaultTimeoutSec = 30
+
 // NewClient は Snipe-IT API クライアントを初期化する。
-// baseURL は "https://snipeit.example.com" 形式（末尾スラッシュなし）。
+//
+// 前提条件:
+//   - baseURL: scheme と host を含む URL（"https://snipeit.example.com" 形式、末尾スラッシュ不要）
+//   - token: 非空の API トークン
+//   - timeoutSec: HTTP タイムアウト秒数。0 以下の場合は defaultTimeoutSec (30秒) を使う
+//
+// 失敗条件:
+//   - baseURL が空または scheme/host を含まない → error
+//   - token が空 → error
 func NewClient(baseURL, token string, timeoutSec int) (*Client, error) {
 	if baseURL == "" {
 		return nil, fmt.Errorf("Snipe-IT URL is not configured (set SNIPEIT_URL or url in config file)")
@@ -55,6 +67,10 @@ func NewClient(baseURL, token string, timeoutSec int) (*Client, error) {
 	}
 	if parsedURL.Scheme == "" || parsedURL.Host == "" {
 		return nil, fmt.Errorf("invalid Snipe-IT URL: must include scheme and host")
+	}
+
+	if timeoutSec <= 0 {
+		timeoutSec = defaultTimeoutSec
 	}
 
 	// 末尾の /api/v1 や / を除去して正規化する
@@ -128,12 +144,7 @@ func (c *Client) doRequest(req *http.Request) ([]byte, int, error) {
 }
 
 func isAllowedStatus(status int, allowed []int) bool {
-	for _, candidate := range allowed {
-		if status == candidate {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowed, status)
 }
 
 func jsonContentType(body io.Reader) string {

@@ -179,3 +179,110 @@ func writeTestConfig(t *testing.T, xdgDir string, fc *config.FileConfig) {
 	// テスト後はファイルを自動削除（t.TempDir が処理）
 	_ = xdgDir
 }
+
+// --- ResolveProfile ---
+
+func TestResolveProfile_FlagTakesPrecedence(t *testing.T) {
+	t.Setenv("SNIPE_PROFILE", "env-instance")
+	fc := &config.FileConfig{Current: "file-instance"}
+	assert.Equal(t, "flag-instance", config.ResolveProfile(fc, "flag-instance"))
+}
+
+func TestResolveProfile_EnvOverridesFile(t *testing.T) {
+	t.Setenv("SNIPE_PROFILE", "env-instance")
+	fc := &config.FileConfig{Current: "file-instance"}
+	assert.Equal(t, "env-instance", config.ResolveProfile(fc, ""))
+}
+
+func TestResolveProfile_FallsBackToFileCurrent(t *testing.T) {
+	t.Setenv("SNIPE_PROFILE", "")
+	fc := &config.FileConfig{Current: "file-instance"}
+	assert.Equal(t, "file-instance", config.ResolveProfile(fc, ""))
+}
+
+func TestResolveProfile_NilFC_ReturnsEnvOrEmpty(t *testing.T) {
+	t.Setenv("SNIPE_PROFILE", "env-instance")
+	assert.Equal(t, "env-instance", config.ResolveProfile(nil, ""))
+}
+
+func TestResolveProfile_AllEmpty_ReturnsEmpty(t *testing.T) {
+	t.Setenv("SNIPE_PROFILE", "")
+	assert.Equal(t, "", config.ResolveProfile(nil, ""))
+}
+
+// --- InitFile ---
+
+func TestInitFile_CreatesFile(t *testing.T) {
+	tempConfigDir(t)
+	fc := &config.FileConfig{
+		Current:   "default",
+		Instances: map[string]config.Instance{"default": {URL: "https://example.com", Token: "tok"}},
+	}
+	path, err := config.InitFile(fc)
+	require.NoError(t, err)
+	assert.NotEmpty(t, path)
+
+	got, err := config.ReadFile()
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "default", got.Current)
+}
+
+func TestInitFile_FailsIfAlreadyExists(t *testing.T) {
+	dir := tempConfigDir(t)
+	fc := &config.FileConfig{
+		Current:   "default",
+		Instances: map[string]config.Instance{"default": {URL: "https://example.com", Token: "tok"}},
+	}
+	writeTestConfig(t, dir, fc)
+
+	_, err := config.InitFile(fc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}
+
+// --- UpsertInstance ---
+
+func TestUpsertInstance_CreatesFileWhenNotExist(t *testing.T) {
+	tempConfigDir(t)
+	err := config.UpsertInstance("prod", config.Instance{URL: "https://prod.example.com", Token: "tok"})
+	require.NoError(t, err)
+
+	got, err := config.ReadFile()
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "prod", got.Current)
+	assert.Equal(t, "https://prod.example.com", got.Instances["prod"].URL)
+}
+
+func TestUpsertInstance_AddsToExistingFile(t *testing.T) {
+	dir := tempConfigDir(t)
+	writeTestConfig(t, dir, &config.FileConfig{
+		Current:   "prod",
+		Instances: map[string]config.Instance{"prod": {URL: "https://prod.example.com", Token: "tok"}},
+	})
+
+	err := config.UpsertInstance("staging", config.Instance{URL: "https://staging.example.com", Token: "stg"})
+	require.NoError(t, err)
+
+	got, err := config.ReadFile()
+	require.NoError(t, err)
+	// 既存の current は変わらない
+	assert.Equal(t, "prod", got.Current)
+	assert.Equal(t, "https://staging.example.com", got.Instances["staging"].URL)
+}
+
+func TestUpsertInstance_UpdatesExistingInstance(t *testing.T) {
+	dir := tempConfigDir(t)
+	writeTestConfig(t, dir, &config.FileConfig{
+		Current:   "prod",
+		Instances: map[string]config.Instance{"prod": {URL: "https://old.example.com", Token: "old"}},
+	})
+
+	err := config.UpsertInstance("prod", config.Instance{URL: "https://new.example.com", Token: "new"})
+	require.NoError(t, err)
+
+	got, err := config.ReadFile()
+	require.NoError(t, err)
+	assert.Equal(t, "https://new.example.com", got.Instances["prod"].URL)
+}

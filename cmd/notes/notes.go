@@ -22,46 +22,57 @@ func NewCmd() *cobra.Command {
 	return cmd
 }
 
+type listOptions struct {
+	run.BaseOptions
+	assetID int
+}
+
 // buildListCmd は "snip notes list --asset-id N" コマンドを生成する。
 // GET /api/v1/notes/{N}/index
 func buildListCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var assetID int
+	o := &listOptions{}
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "資産のノート一覧を取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequirePositiveInt("--asset-id", assetID)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequirePositiveInt("--asset-id", o.assetID)
 			}, func(ctx context.Context) error {
-				return run.RunGetByPath(ctx, o, fmt.Sprintf("notes/%d/index", assetID))
+				return run.RunGetBySegments(ctx, &o.BaseOptions, "notes", fmt.Sprintf("%d", o.assetID), "index")
 			})
 		},
 	}
-	cmd.Flags().IntVar(&assetID, "asset-id", 0, "Asset (hardware) ID (required)")
+	cmd.Flags().IntVar(&o.assetID, "asset-id", 0, "Asset (hardware) ID (required)")
 	cmd.MarkFlagRequired("asset-id") //nolint:errcheck
 	return cmd
+}
+
+type createOptions struct {
+	run.BaseOptions
+	assetID int
+	data    string
 }
 
 // buildCreateCmd は "snip notes create --asset-id N --data JSON" コマンドを生成する。
 // POST /api/v1/notes/{N}/store
 func buildCreateCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var assetID int
-	var data string
+	o := &createOptions{}
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "資産にノートを追加する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequirePositiveInt("--asset-id", assetID)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequireAll(
+					run.RequirePositiveInt("--asset-id", o.assetID),
+					run.RequireValidJSON("--data", o.data),
+				)
 			}, func(ctx context.Context) error {
-				return run.RunPostJSONByPath(ctx, o, fmt.Sprintf("notes/%d/store", assetID), data)
+				return run.RunPostJSONBySegments(ctx, &o.BaseOptions, o.data, "notes", fmt.Sprintf("%d", o.assetID), "store")
 			})
 		},
 	}
-	cmd.Flags().IntVar(&assetID, "asset-id", 0, "Asset (hardware) ID (required)")
-	cmd.Flags().StringVar(&data, "data", "", `JSON data, e.g. {"note":"text"} (required)`)
+	cmd.Flags().IntVar(&o.assetID, "asset-id", 0, "Asset (hardware) ID (required)")
+	cmd.Flags().StringVar(&o.data, "data", "", `JSON data, e.g. {"note":"text"} (required)`)
 	cmd.MarkFlagRequired("asset-id") //nolint:errcheck
 	cmd.MarkFlagRequired("data")     //nolint:errcheck
 	return cmd

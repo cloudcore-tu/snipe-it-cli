@@ -16,6 +16,8 @@ func NewCmd() *cobra.Command {
 		Short:   "一括インポートを管理する",
 		DocsURL: "https://snipe-it.readme.io/reference/imports",
 		APIPath: "imports",
+		// create はファイルアップロードのため標準実装を除外し buildCreateCmd で差し替える
+		ExcludeSubCmds: []string{"create"},
 		ActionFns: []run.ActionDef{
 			{
 				Use:       "process",
@@ -26,43 +28,33 @@ func NewCmd() *cobra.Command {
 		},
 	}
 	cmd := def.BuildCmd()
-
-	// create はファイルアップロードのため標準 create を上書きする
-	// ResourceDef.BuildCmd() が生成した create サブコマンドを削除して差し替える
-	removeSubCmd(cmd, "create")
 	cmd.AddCommand(buildCreateCmd())
-
 	return cmd
 }
 
-// removeSubCmd は cobra コマンドから指定名のサブコマンドを削除する。
-func removeSubCmd(parent *cobra.Command, name string) {
-	for _, sub := range parent.Commands() {
-		if sub.Use == name {
-			parent.RemoveCommand(sub)
-			return
-		}
-	}
+type createOptions struct {
+	run.BaseOptions
+	filePath   string
+	importType string
 }
 
 // buildCreateCmd は "snip imports create --file PATH --type TYPE" コマンドを生成する。
 // POST /api/v1/imports に multipart/form-data でファイルをアップロードする。
 func buildCreateCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var filePath, importType string
+	o := &createOptions{}
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "CSV ファイルをアップロードしてインポートを作成する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequireFileExists("--file", filePath)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequireFileExists("--file", o.filePath)
 			}, func(ctx context.Context) error {
-				return run.RunUpload(ctx, o, "imports", "file_contents", filePath, map[string]string{"import_type": importType})
+				return run.RunUpload(ctx, &o.BaseOptions, "imports", "file_contents", o.filePath, map[string]string{"import_type": o.importType})
 			})
 		},
 	}
-	cmd.Flags().StringVar(&filePath, "file", "", "Path to CSV file (required)")
-	cmd.Flags().StringVar(&importType, "type", "hardware",
+	cmd.Flags().StringVar(&o.filePath, "file", "", "Path to CSV file (required)")
+	cmd.Flags().StringVar(&o.importType, "type", "hardware",
 		"Import type: hardware, accessories, licenses, consumables, components, users")
 	cmd.MarkFlagRequired("file") //nolint:errcheck
 	return cmd

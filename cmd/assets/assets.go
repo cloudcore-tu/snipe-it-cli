@@ -59,42 +59,50 @@ func NewCmd() *cobra.Command {
 	return cmd
 }
 
+type byTagOptions struct {
+	run.BaseOptions
+	tag string
+}
+
 // buildByTagCmd は "snip assets bytag --tag TAG" コマンドを生成する。
 func buildByTagCmd() *cobra.Command {
-	var tag string
-	o := &run.BaseOptions{}
+	o := &byTagOptions{}
 	cmd := &cobra.Command{
 		Use:   "bytag",
 		Short: "資産タグで資産を取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequireNonEmpty("--tag", tag)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequireNonEmpty("--tag", o.tag)
 			}, func(ctx context.Context) error {
-				return run.RunGetByPath(ctx, o, "hardware/bytag/"+tag)
+				return run.RunGetBySegments(ctx, &o.BaseOptions, "hardware", "bytag", o.tag)
 			})
 		},
 	}
-	cmd.Flags().StringVar(&tag, "tag", "", "Asset tag (required)")
+	cmd.Flags().StringVar(&o.tag, "tag", "", "Asset tag (required)")
 	cmd.MarkFlagRequired("tag") //nolint:errcheck
 	return cmd
 }
 
+type bySerialOptions struct {
+	run.BaseOptions
+	serial string
+}
+
 // buildBySerialCmd は "snip assets byserial --serial SERIAL" コマンドを生成する。
 func buildBySerialCmd() *cobra.Command {
-	var serial string
-	o := &run.BaseOptions{}
+	o := &bySerialOptions{}
 	cmd := &cobra.Command{
 		Use:   "byserial",
 		Short: "シリアル番号で資産を取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequireNonEmpty("--serial", serial)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequireNonEmpty("--serial", o.serial)
 			}, func(ctx context.Context) error {
-				return run.RunGetByPath(ctx, o, "hardware/byserial/"+serial)
+				return run.RunGetBySegments(ctx, &o.BaseOptions, "hardware", "byserial", o.serial)
 			})
 		},
 	}
-	cmd.Flags().StringVar(&serial, "serial", "", "Serial number (required)")
+	cmd.Flags().StringVar(&o.serial, "serial", "", "Serial number (required)")
 	cmd.MarkFlagRequired("serial") //nolint:errcheck
 	return cmd
 }

@@ -105,7 +105,9 @@ func addResourceCommands(cmd *cobra.Command) {
 
 func newRootCmd() *cobra.Command {
 	options := newRootOptions()
-	options.installLogger()
+	// installLogger は PersistentPreRunE で実行する。
+	// newRootCmd() 呼び出し時点でグローバル slog.SetDefault を発火させないことで
+	// テストでの parallel 実行時の global state 競合を防ぐ。
 
 	cmd := &cobra.Command{
 		Use:   "snip",
@@ -123,6 +125,7 @@ Examples:
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			options.installLogger()
 			options.applyLogFlags()
 			return nil
 		},
