@@ -14,7 +14,10 @@ func NewCmd() *cobra.Command {
 		Short: "Snipe-IT サーバー設定を管理する",
 	}
 
-	// GET /api/v1/settings
+	// GET /api/v1/settings/{setting}
+	// Note: Snipe-IT v8.3.7 currently routes this to Api\SettingsController::show,
+	// but that controller method does not exist upstream and the API returns HTTP 500.
+	// Keep the command for route parity, but do not rely on it in smoke tests.
 	cmd.AddCommand(run.BuildPathReadCmd("get", "現在の設定を取得する", "settings/general"))
 
 	// POST /api/v1/settings — JSON で設定を更新する（PATCH でなく POST）

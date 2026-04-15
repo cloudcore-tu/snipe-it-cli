@@ -294,6 +294,39 @@ source <(snip completion zsh)
 snip completion fish > ~/.config/fish/completions/snip.fish
 ```
 
+## ローカル Snipe-IT でのテスト
+
+```bash
+docker compose up -d
+
+# 初回のみ: DB を初期化
+docker compose exec snipeit php artisan migrate --force
+
+# 初回のみ: ローカル管理者を作成
+docker compose exec snipeit php artisan snipeit:create-admin \
+  --first_name=Local \
+  --last_name=Admin \
+  --email=admin@example.com \
+  --username=admin \
+  --password=password
+```
+
+その後、ブラウザで `http://localhost:18080` を開き、`admin` / `password` でログインして API トークンを発行する。
+
+```bash
+export SNIPEIT_TOKEN=PASTE_LOCAL_API_TOKEN
+bash scripts/snipeit-local-smoke.sh
+```
+
+終了:
+
+```bash
+docker compose down
+
+# DB とアップロードを消して最初からやり直す場合
+docker compose down -v
+```
+
 ## ドキュメント
 
 - [docs/adr/](docs/adr/) — 設計判断の記録
