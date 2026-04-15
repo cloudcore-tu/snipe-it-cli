@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-15
+
+### Added
+
+- GitHub Release asset に shell completion（bash/zsh/fish）を追加
+- deb/rpm パッケージに shell completion を同梱
+
+### Changed
+
+- GitHub Release asset の man page 名を `snip.en.1` / `snip.ja.1` に分離
+- Homebrew tap 更新 workflow の formula 更新スクリプト呼び先を `snipe-it-cli` 用に修正
+
 ## [1.0.0] - 2026-04-15
 
 ### Added

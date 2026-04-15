@@ -17,6 +17,8 @@ brew tap cloudcore-tu/tap https://github.com/cloudcore-tu/homebrew-tap.git
 brew install snipe-it-cli
 ```
 
+shell completion は自動配置される。
+
 ### deb / rpm（Linux）
 
 [GitHub Releases](https://github.com/cloudcore-tu/snipe-it-cli/releases) からダウンロード。
@@ -30,6 +32,7 @@ sudo rpm -i snipe-it-cli_<VERSION>_linux_amd64.rpm
 ```
 
 man ページは `/usr/share/man/` に自動配置される。
+shell completion も自動配置される。
 
 ### バイナリ（直接ダウンロード）
 
@@ -282,6 +285,8 @@ snip assets list -o 'jsonpath={rows.#.name}'
 優先順位: `CLI フラグ > 環境変数 > 設定ファイル > デフォルト`
 
 ## シェル補完
+
+Homebrew / deb / rpm インストール時は自動配置される。手動配置が必要な場合だけ次を使う。
 
 ```bash
 # bash

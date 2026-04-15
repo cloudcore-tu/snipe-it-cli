@@ -76,7 +76,7 @@ jobs:
       - name: Update formula
         run: |
           version="${GITHUB_REF_NAME#v}"
-          python3 /tmp/homebrew-tap/scripts/update-formula.py "${version}" /tmp/checksums.txt
+          python3 /tmp/homebrew-tap/scripts/update-snipe-it-cli-formula.py "${version}" /tmp/checksums.txt
 
       - name: Commit and push
         env:
