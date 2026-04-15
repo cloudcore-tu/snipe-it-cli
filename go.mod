@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.18.0
 	go.yaml.in/yaml/v3 v3.0.4
 )
