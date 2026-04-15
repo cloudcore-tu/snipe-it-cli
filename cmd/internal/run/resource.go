@@ -417,6 +417,24 @@ func RunPatchByPath(ctx context.Context, o *BaseOptions, urlPath, data string) e
 	return o.PrintResponse(raw)
 }
 
+// RunPostJSONByPath は JSON 文字列を検証して POST /api/v1/{urlPath} を実行し結果を出力する。
+func RunPostJSONByPath(ctx context.Context, o *BaseOptions, urlPath, data string) error {
+	payload, err := JSONBytes(data)
+	if err != nil {
+		return err
+	}
+	return RunPostByPath(ctx, o, urlPath, payload)
+}
+
+// RunPostValueByPath は値を JSON 化して POST /api/v1/{urlPath} を実行し結果を出力する。
+func RunPostValueByPath(ctx context.Context, o *BaseOptions, urlPath string, value any) error {
+	payload, err := MarshalJSONData(value)
+	if err != nil {
+		return err
+	}
+	return RunPostByPath(ctx, o, urlPath, payload)
+}
+
 // RunPostByPath は初期化済みの BaseOptions を使って POST /api/v1/{urlPath} を実行し結果を出力する。
 // account/request 等の非 CRUD POST エンドポイントに使用する。
 func RunPostByPath(ctx context.Context, o *BaseOptions, urlPath string, data []byte) error {

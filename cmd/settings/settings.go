@@ -45,11 +45,7 @@ func buildUpdateCmd() *cobra.Command {
 		Short: "設定を更新する（POST /api/v1/settings）",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
-				payload, err := run.JSONBytes(data)
-				if err != nil {
-					return err
-				}
-				return run.RunPostByPath(ctx, o, "settings", payload)
+				return run.RunPostJSONByPath(ctx, o, "settings", data)
 			})
 		},
 	}

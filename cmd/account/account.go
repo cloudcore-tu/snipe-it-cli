@@ -98,11 +98,7 @@ func buildTokenCreateCmd() *cobra.Command {
 		Short: "API トークンを作成する",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
-				payload, err := run.JSONBytes(data)
-				if err != nil {
-					return err
-				}
-				return run.RunPostByPath(ctx, o, "account/personal-access-tokens", payload)
+				return run.RunPostJSONByPath(ctx, o, "account/personal-access-tokens", data)
 			})
 		},
 	}

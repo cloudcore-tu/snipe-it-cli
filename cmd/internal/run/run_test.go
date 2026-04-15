@@ -3,6 +3,7 @@ package run_test
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
@@ -213,9 +214,27 @@ func TestRequirePositiveInt(t *testing.T) {
 	assert.Contains(t, err.Error(), "--id")
 }
 
+func TestRequireAll(t *testing.T) {
+	wantErr := errors.New("boom")
+	err := run.RequireAll(nil, wantErr, errors.New("ignored"))
+	require.ErrorIs(t, err, wantErr)
+}
+
 func TestRequireNonEmpty(t *testing.T) {
 	assert.NoError(t, run.RequireNonEmpty("--tag", "asset-001"))
 	err := run.RequireNonEmpty("--tag", " ")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--tag")
+}
+
+func TestRequireFileExists(t *testing.T) {
+	file, err := os.CreateTemp(t.TempDir(), "fixture-*.txt")
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+
+	assert.NoError(t, run.RequireFileExists("--file", file.Name()))
+
+	err = run.RequireFileExists("--file", file.Name()+"-missing")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to access --file")
 }

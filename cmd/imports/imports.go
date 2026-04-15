@@ -54,7 +54,9 @@ func buildCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "CSV ファイルをアップロードしてインポートを作成する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
+			return run.CompleteValidateRun(cmd, o, func() error {
+				return run.RequireFileExists("--file", filePath)
+			}, func(ctx context.Context) error {
 				return run.RunUpload(ctx, o, "imports", "file_contents", filePath, map[string]string{"import_type": importType})
 			})
 		},
