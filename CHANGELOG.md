@@ -10,6 +10,7 @@
 
 - release workflow の changelog 抽出を見出し込みに修正し、未検出時は fail するようにした
 - release workflow の release notes からバージョン見出しを除外し、`### Added` / `### Changed` 以降だけ載せるようにした
+- release notes 抽出と Homebrew formula 同期の責務を workflow 直書きから `scripts/` に分離した
 
 ## [1.0.2] - 2026-04-15
 

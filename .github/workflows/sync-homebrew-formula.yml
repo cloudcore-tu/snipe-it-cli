@@ -36,21 +36,4 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          version="${RELEASE_TAG#v}"
-          python3 /tmp/homebrew-tap/scripts/update-snipe-it-cli-formula.py "${version}" /tmp/checksums.txt
-
-      - name: Commit and push
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          version="${RELEASE_TAG#v}"
-          cd /tmp/homebrew-tap
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git add Formula/snipe-it-cli.rb
-          if git diff --cached --quiet; then
-            echo "No formula changes"
-            exit 0
-          fi
-          git commit -m "chore: snipe-it-cli formula を v${version} に更新"
-          git push
+          bash scripts/sync-homebrew-formula.sh "${RELEASE_TAG}" /tmp/checksums.txt /tmp/homebrew-tap

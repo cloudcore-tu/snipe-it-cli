@@ -29,19 +29,7 @@ jobs:
       - name: Extract release notes from CHANGELOG.md
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk -v version="${version}" '
-            $0 ~ "^## \\[" version "\\]" { flag=1; next }
-            /^## \[/ && flag && $0 !~ "^## \\[" version "\\]" { exit }
-            flag { print }
-          ' CHANGELOG.md \
-            | sed '/^[[:space:]]*$/d' \
-            > /tmp/release_notes.md
-          if [ ! -s /tmp/release_notes.md ]; then
-            echo "release notes section for v${version} not found in CHANGELOG.md" >&2
-            exit 1
-          fi
-          echo "Release notes for v${version}:"
-          cat /tmp/release_notes.md
+          bash scripts/extract-release-notes.sh "${version}" /tmp/release_notes.md CHANGELOG.md
 
       # linux/arm64 の libc ビルド用クロスコンパイラ
       - name: Install cross-compilers
@@ -84,19 +72,4 @@ jobs:
 
       - name: Update formula
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          python3 /tmp/homebrew-tap/scripts/update-snipe-it-cli-formula.py "${version}" /tmp/checksums.txt
-
-      - name: Commit and push
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          cd /tmp/homebrew-tap
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git add Formula/snipe-it-cli.rb
-          if git diff --cached --quiet; then
-            echo "No formula changes"
-            exit 0
-          fi
-          git commit -m "chore: snipe-it-cli formula を v${version} に更新"
-          git push
+          bash scripts/sync-homebrew-formula.sh "${GITHUB_REF_NAME}" /tmp/checksums.txt /tmp/homebrew-tap
