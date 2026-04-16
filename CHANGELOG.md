@@ -6,8 +6,19 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-16
+
 ### Changed
 
+- BaseOptions フィールドを unexported 化（client, printFlags, out）。Complete() 前のアクセスを型レベルで防止
+- run package をファイル分割: validate.go, json.go, httpdispatch.go, filedownload.go を新設
+- HTTP dispatch helper を本質的な命名に変更（Run*ByPath → *AndPrint 系）
+- JSON helper を本質的な命名に変更（UnmarshalJSON → ParseJSONObject, ValidateJSON → CheckJSONSyntax 等）
+- client.go 内部の命名改善（requestOptions → apiRequestSpec, doAPIRequest → sendAPIRequest）
+- ファイル名を責務に合わせてリネーム（helpers.go → httpdispatch.go, binary.go → filedownload.go）
+- 不足していた docstring を追記（extractPayload の失敗契約、sendAPIRequest のフロー等）
+- command flow と HTTP 契約を整理し、境界と責務を全体で引き締めるリファクタリング
+- path segment 連結を JoinPathSegments に統一し、path injection を防止
 - release workflow の changelog 抽出を見出し込みに修正し、未検出時は fail するようにした
 - release workflow の release notes からバージョン見出しを除外し、`### Added` / `### Changed` 以降だけ載せるようにした
 
