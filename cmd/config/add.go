@@ -7,50 +7,42 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type addOptions struct {
+	name  string
+	url   string
+	token string
+}
+
+func (o *addOptions) validate() error {
+	return validateInstanceInput(o.name, o.url, o.token)
+}
+
+func (o *addOptions) run() error {
+	return config.UpsertInstance(o.name, config.Instance{URL: o.url, Token: o.token})
+}
+
 func newAddCmd() *cobra.Command {
-	var (
-		url   string
-		token string
-	)
+	o := &addOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "add NAME",
 		Short: "インスタンスを追加・更新する",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-
-			fc, err := config.ReadFile()
-			if err != nil {
+			o.name = args[0]
+			if err := o.validate(); err != nil {
 				return err
 			}
-			if fc == nil {
-				fc = &config.FileConfig{
-					Current:   name,
-					Instances: make(map[string]config.Instance),
-				}
-			}
-			if fc.Instances == nil {
-				fc.Instances = make(map[string]config.Instance)
-			}
-
-			fc.Instances[name] = config.Instance{URL: url, Token: token}
-			// current が未設定の場合は最初に追加したインスタンスをデフォルトにする
-			if fc.Current == "" {
-				fc.Current = name
-			}
-
-			if err := config.WriteFile(fc); err != nil {
+			if err := o.run(); err != nil {
 				return err
 			}
-
-			fmt.Fprintf(cmd.OutOrStdout(), "Instance %q added/updated.\n", name)
-			return nil
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "Instance %q added/updated.\n", o.name)
+			return err
 		},
 	}
 
-	cmd.Flags().StringVar(&url, "url", "", "Snipe-IT URL (required)")
-	cmd.Flags().StringVar(&token, "token", "", "API token (required)")
+	cmd.Flags().StringVar(&o.url, "url", "", "Snipe-IT URL (required)")
+	cmd.Flags().StringVar(&o.token, "token", "", "API token (required)")
 	cmd.MarkFlagRequired("url")   //nolint:errcheck
 	cmd.MarkFlagRequired("token") //nolint:errcheck
 

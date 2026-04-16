@@ -1,14 +1,14 @@
 // run パッケージは全コマンドの Options パターン共通処理を提供する。
-// BaseOptions の Complete、フィルタ解析、API エラーラップ等。
+// BaseOptions の Complete と Complete → Validate → Run の制御フローを提供する。
+// validation helpers は validate.go、JSON helpers は json.go、CRUD フレームワークは resource.go、
+// HTTP 実行ヘルパーは helpers.go、バイナリ保存は binary.go に分離している。
 package run
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/cloudcore-tu/snipe-it-cli/internal/config"
 	"github.com/cloudcore-tu/snipe-it-cli/internal/output"
@@ -57,15 +57,50 @@ func (o *BaseOptions) PrintResponse(raw []byte) error {
 }
 
 // Complete はグローバルフラグ・環境変数・設定ファイルをマージして BaseOptions を初期化する。
+// Out が未設定の場合は cmd.OutOrStdout() を使う（cobra の SetOut でテスト注入が可能）。
+// 副作用: 設定ファイルのパーミッションが 0600 以外の場合、slog.Warn を出力する。
 func (o *BaseOptions) Complete(cmd *cobra.Command) error {
-	profile, _ := cmd.Root().PersistentFlags().GetString("profile")
-	cfg, err := config.Load(profile)
+	o.resolveOutput(cmd)
+	cfg, err := loadConfig(cmd.Root())
 	if err != nil {
 		return err
 	}
+	config.WarnInsecurePermissions()
+	return o.initFromConfig(cfg)
+}
 
-	// CLI フラグによる上書き（フラグが明示的に指定された場合のみ）
-	root := cmd.Root()
+func (o *BaseOptions) resolveOutput(cmd *cobra.Command) {
+	if o.Out == nil {
+		o.Out = cmd.OutOrStdout()
+	}
+}
+
+// loadConfig はプロファイル読み込みと CLI フラグ上書きを行い設定を返す。
+func loadConfig(root *cobra.Command) (*config.Config, error) {
+	profile, _ := root.PersistentFlags().GetString("profile")
+	cfg, err := config.Load(profile)
+	if err != nil {
+		return nil, err
+	}
+	applyFlagOverrides(cfg, root)
+	return cfg, nil
+}
+
+// initFromConfig は設定から PrintFlags と Client を初期化する。
+func (o *BaseOptions) initFromConfig(cfg *config.Config) error {
+	o.PrintFlags = &output.PrintFlags{OutputFormat: cfg.Output}
+	client, err := snipeit.NewClient(cfg.URL, cfg.Token, cfg.Timeout)
+	if err != nil {
+		return err
+	}
+	o.Client = client
+	return nil
+}
+
+// applyFlagOverrides はルートコマンドの永続フラグで cfg を上書きする。
+// フラグが明示的に指定された（Changed == true）場合のみ上書きする。
+// 優先順位: CLI フラグ > 環境変数（config.Load が適用済み）
+func applyFlagOverrides(cfg *config.Config, root *cobra.Command) {
 	if root.PersistentFlags().Changed("url") {
 		cfg.URL, _ = root.PersistentFlags().GetString("url")
 	}
@@ -78,15 +113,6 @@ func (o *BaseOptions) Complete(cmd *cobra.Command) error {
 	if root.PersistentFlags().Changed("output") {
 		cfg.Output, _ = root.PersistentFlags().GetString("output")
 	}
-
-	o.PrintFlags = &output.PrintFlags{OutputFormat: cfg.Output}
-
-	client, err := snipeit.NewClient(cfg.URL, cfg.Token, cfg.Timeout)
-	if err != nil {
-		return err
-	}
-	o.Client = client
-	return nil
 }
 
 // CompleteValidateRun は BaseOptions を使う command の共通制御。
@@ -106,119 +132,4 @@ func CompleteValidateRun(
 		}
 	}
 	return run(cmd.Context())
-}
-
-// RequireAll は複数の validation error を順に評価し、最初のエラーを返す。
-func RequireAll(validations ...error) error {
-	for _, err := range validations {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ParseFilters は "key=value" 形式の文字列スライスを map[string][]string に変換する。
-// --filter フラグの値を API クエリパラメータに変換するために使用する。
-// 同一キーの複数指定に対応する（例: --filter status=1 --filter category_id=2）。
-func ParseFilters(rawFilters []string) (map[string][]string, error) {
-	if len(rawFilters) == 0 {
-		return nil, nil
-	}
-	result := make(map[string][]string, len(rawFilters))
-	for _, f := range rawFilters {
-		parts := strings.SplitN(f, "=", 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid --filter format: %q (expected: key=value)", f)
-		}
-		k, v := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-		result[k] = append(result[k], v)
-	}
-	return result, nil
-}
-
-// UnmarshalJSON は JSON 文字列を map[string]any に変換する。
-// create/update コマンドの --data フラグの検証に使用する。
-func UnmarshalJSON(data string) (map[string]any, error) {
-	var v map[string]any
-	if err := json.Unmarshal([]byte(data), &v); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
-	}
-	return v, nil
-}
-
-// ValidateJSON は JSON 文字列として妥当かを検証する。
-func ValidateJSON(data string) error {
-	var v any
-	if err := json.Unmarshal([]byte(data), &v); err != nil {
-		return fmt.Errorf("failed to parse JSON: %w", err)
-	}
-	return nil
-}
-
-// JSONBytes は JSON 文字列を検証してそのまま []byte にして返す。
-func JSONBytes(data string) ([]byte, error) {
-	if err := ValidateJSON(data); err != nil {
-		return nil, err
-	}
-	return []byte(data), nil
-}
-
-// MarshalJSONData は値を JSON に変換する。
-func MarshalJSONData(v any) ([]byte, error) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-	return data, nil
-}
-
-// RequireDeleteConfirmation は --yes なしの削除操作をブロックする。
-// 誤削除防止のためすべての delete コマンドで呼び出す。
-// 対話的なプロンプトは出さず、--yes フラグで確認を明示させる（エージェント対応）。
-func RequireDeleteConfirmation(yes bool) error {
-	if yes {
-		return nil
-	}
-	return fmt.Errorf("--yes flag is required to confirm deletion")
-}
-
-// FormatAPIError は snipeit.APIError をユーザー向けのエラーに変換する。
-func FormatAPIError(err error) error {
-	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("%w", err)
-}
-
-// RequirePositiveInt は整数フラグが正の値であることを保証する。
-func RequirePositiveInt(flagName string, value int) error {
-	if value > 0 {
-		return nil
-	}
-	return fmt.Errorf("%s must be a positive integer", flagName)
-}
-
-// RequireNonEmpty は文字列フラグが空でないことを保証する。
-func RequireNonEmpty(flagName, value string) error {
-	if strings.TrimSpace(value) != "" {
-		return nil
-	}
-	return fmt.Errorf("%s must not be empty", flagName)
-}
-
-// RequireFileExists はファイルパスが空でなく、既存の通常ファイルを指すことを保証する。
-func RequireFileExists(flagName, path string) error {
-	if err := RequireNonEmpty(flagName, path); err != nil {
-		return err
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("failed to access %s: %w", flagName, err)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("%s must point to a file", flagName)
-	}
-	return nil
 }

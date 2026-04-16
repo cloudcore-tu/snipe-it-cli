@@ -142,6 +142,18 @@ func TestParseFilters_MissingEquals(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid --filter format")
 }
 
+func TestParseFilters_EmptyKey(t *testing.T) {
+	_, err := run.ParseFilters([]string{"=value"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "key must not be empty")
+}
+
+func TestParseFilters_EmptyValue(t *testing.T) {
+	_, err := run.ParseFilters([]string{"status="})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "value must not be empty")
+}
+
 // --- UnmarshalJSON ---
 
 func TestUnmarshalJSON_ValidObject(t *testing.T) {
@@ -196,17 +208,6 @@ func TestRequireDeleteConfirmation_WithoutYes(t *testing.T) {
 	assert.Contains(t, err.Error(), "--yes")
 }
 
-// --- FormatAPIError ---
-
-func TestFormatAPIError_Nil(t *testing.T) {
-	assert.NoError(t, run.FormatAPIError(nil))
-}
-
-func TestFormatAPIError_WrapsError(t *testing.T) {
-	err := run.FormatAPIError(assert.AnError)
-	assert.Error(t, err)
-}
-
 func TestRequirePositiveInt(t *testing.T) {
 	assert.NoError(t, run.RequirePositiveInt("--id", 1))
 	err := run.RequirePositiveInt("--id", 0)
@@ -225,6 +226,35 @@ func TestRequireNonEmpty(t *testing.T) {
 	err := run.RequireNonEmpty("--tag", " ")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--tag")
+}
+
+func TestRequireValidJSON(t *testing.T) {
+	assert.NoError(t, run.RequireValidJSON("--data", `{"name":"Laptop"}`))
+
+	err := run.RequireValidJSON("--data", "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--data")
+
+	err = run.RequireValidJSON("--data", "{invalid")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+}
+
+func TestValidateOptionalJSON(t *testing.T) {
+	assert.NoError(t, run.ValidateOptionalJSON(""))
+	assert.NoError(t, run.ValidateOptionalJSON(" "))
+	assert.NoError(t, run.ValidateOptionalJSON(`{"id":1}`))
+
+	err := run.ValidateOptionalJSON("{invalid")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+}
+
+func TestJoinPathSegments(t *testing.T) {
+	assert.Equal(t,
+		"labels/label%2Fa%20b",
+		run.JoinPathSegments("labels", "label/a b"),
+	)
 }
 
 func TestRequireFileExists(t *testing.T) {

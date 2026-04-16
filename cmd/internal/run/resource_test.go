@@ -1,314 +1,235 @@
-// resource_test.go は genericXxxOptions の Run 関数を直接テストする白箱テスト。
-// package run（非 _test）にすることで unexported 型に直接アクセスする。
-package run
+package run_test
 
 import (
 	"bytes"
-	"context"
-	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
-	"github.com/cloudcore-tu/snipe-it-cli/internal/output"
-	"github.com/cloudcore-tu/snipe-it-cli/internal/snipeit"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/run"
+	"github.com/cloudcore-tu/snipe-it-cli/cmd/internal/testutil"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// startResourceTestServer はテスト用 HTTP サーバーを起動する。
-// ループバックポートのバインドが不可能な制限環境ではテストをスキップする。
-func startResourceTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+func newResourceTestRoot(cmd *cobra.Command) *cobra.Command {
+	root := &cobra.Command{Use: "snip"}
+	root.PersistentFlags().String("profile", "", "")
+	root.PersistentFlags().String("url", "", "")
+	root.PersistentFlags().String("token", "", "")
+	root.PersistentFlags().Int("timeout", 0, "")
+	root.PersistentFlags().String("output", "", "")
+	root.AddCommand(cmd)
+	return root
+}
+
+func executeResourceCommand(t *testing.T, cmd *cobra.Command, baseURL string, args ...string) (string, error) {
 	t.Helper()
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Skipf("loopback listener unavailable: %v", err)
-		return nil
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("SNIPEIT_URL", baseURL)
+	t.Setenv("SNIPEIT_TOKEN", "test-token")
+	t.Setenv("SNIPEIT_OUTPUT", "json")
+
+	root := newResourceTestRoot(cmd)
+	var stdout bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stdout)
+	root.SetArgs(append([]string{cmd.Name()}, args...))
+	err := root.Execute()
+	return stdout.String(), err
+}
+
+func newTestResourceDef() *run.ResourceDef {
+	return &run.ResourceDef{
+		Use:     "assets",
+		Short:   "IT assets",
+		APIPath: "hardware",
+		ActionFns: []run.ActionDef{
+			{Use: "checkout", Short: "checkout", Action: "checkout", NeedsData: true},
+			{Use: "checkin", Short: "checkin", Action: "checkin", NeedsData: false},
+		},
 	}
-	srv := httptest.NewUnstartedServer(handler)
-	srv.Listener = l
-	srv.Start()
-	t.Cleanup(srv.Close)
-	return srv
 }
 
-// newResourceBaseOptions はリソーステスト用の BaseOptions を生成する。出力は JSON 固定。
-func newResourceBaseOptions(client *snipeit.Client, out *bytes.Buffer) BaseOptions {
-	return BaseOptions{
-		Client:     client,
-		PrintFlags: &output.PrintFlags{OutputFormat: "json"},
-		Out:        out,
-	}
-}
-
-// newResourceTestClient はテストサーバーに向けた snipeit.Client を生成する。
-func newResourceTestClient(t *testing.T, srv *httptest.Server) *snipeit.Client {
-	t.Helper()
-	c, err := snipeit.NewClient(srv.URL, "test-token", 5)
-	require.NoError(t, err)
-	return c
-}
-
-// --- runList ---
-
-func TestRunList_ReturnsRows(t *testing.T) {
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+func TestResourceListCommand_ReturnsRows(t *testing.T) {
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/api/v1/hardware", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"total":2,"rows":[{"id":1,"name":"Laptop-001"},{"id":2,"name":"Laptop-002"}]}`)
-	})
+		_, err := w.Write([]byte(`{"total":2,"rows":[{"id":1,"name":"Laptop-001"},{"id":2,"name":"Laptop-002"}]}`))
+		require.NoError(t, err)
+	}))
 
-	var buf bytes.Buffer
-	o := &genericListOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		limit:       50,
-	}
-
-	require.NoError(t, o.runList(context.Background()))
-
-	out := buf.String()
+	out, err := executeResourceCommand(t, newTestResourceDef().BuildCmd(), srv.URL, "list")
+	require.NoError(t, err)
 	assert.Contains(t, out, "Laptop-001")
 	assert.Contains(t, out, "Laptop-002")
 }
 
-func TestRunList_FilterPropagated(t *testing.T) {
-	var capturedQuery string
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		capturedQuery = r.URL.RawQuery
+func TestResourceListCommand_PropagatesFilters(t *testing.T) {
+	var query string
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"total":0,"rows":[]}`)
-	})
+		_, err := w.Write([]byte(`{"total":0,"rows":[]}`))
+		require.NoError(t, err)
+	}))
 
-	var buf bytes.Buffer
-	o := &genericListOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		limit:       50,
-		filters:     []string{"status_id=2"},
-	}
-
-	require.NoError(t, o.runList(context.Background()))
-	assert.Contains(t, capturedQuery, "status_id=2")
+	_, err := executeResourceCommand(t, newTestResourceDef().BuildCmd(), srv.URL, "list", "--filter", "status_id=2")
+	require.NoError(t, err)
+	assert.Contains(t, query, "status_id=2")
 }
 
-func TestRunList_APIError_PropagatesError(t *testing.T) {
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, `{"messages":"Unauthorized"}`, http.StatusUnauthorized)
-	})
-
-	var buf bytes.Buffer
-	o := &genericListOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		limit:       50,
-	}
-
-	assert.Error(t, o.runList(context.Background()))
-}
-
-// --- runGet ---
-
-func TestRunGet_ReturnsResource(t *testing.T) {
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+func TestResourceGetCommand_ReturnsResource(t *testing.T) {
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/api/v1/hardware/42", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"id":42,"name":"Laptop-042"}`)
-	})
+		_, err := w.Write([]byte(`{"id":42,"name":"Laptop-042"}`))
+		require.NoError(t, err)
+	}))
 
-	var buf bytes.Buffer
-	o := &genericGetOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		id:          42,
-	}
-
-	require.NoError(t, o.runGet(context.Background()))
-	assert.Contains(t, buf.String(), `"id": 42`)
-	assert.Contains(t, buf.String(), "Laptop-042")
+	out, err := executeResourceCommand(t, newTestResourceDef().BuildCmd(), srv.URL, "get", "--id", "42")
+	require.NoError(t, err)
+	assert.Contains(t, out, `"id": 42`)
+	assert.Contains(t, out, "Laptop-042")
 }
 
-func TestRunGet_NotFound_ReturnsError(t *testing.T) {
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, `{"messages":"Not found"}`, http.StatusNotFound)
-	})
-
-	var buf bytes.Buffer
-	o := &genericGetOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		id:          99999,
-	}
-
-	assert.Error(t, o.runGet(context.Background()))
-}
-
-// --- runCreate ---
-
-func TestRunCreate_SendsPostAndReturnsPayload(t *testing.T) {
+func TestResourceCreateCommand_SendsPostAndReturnsPayload(t *testing.T) {
 	var capturedBody []byte
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
-		capturedBody, _ = io.ReadAll(r.Body)
+		body, err := ioReadAll(r)
+		require.NoError(t, err)
+		capturedBody = body
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"status":"success","payload":{"id":1,"name":"Laptop-001"}}`)
-	})
+		_, err = w.Write([]byte(`{"status":"success","payload":{"id":1,"name":"Laptop-001"}}`))
+		require.NoError(t, err)
+	}))
 
-	var buf bytes.Buffer
-	o := &genericCreateOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		data:        `{"name":"Laptop-001","asset_tag":"A001","model_id":1,"status_id":2}`,
-	}
-
-	require.NoError(t, o.runCreate(context.Background()))
+	out, err := executeResourceCommand(
+		t,
+		newTestResourceDef().BuildCmd(),
+		srv.URL,
+		"create",
+		"--data",
+		`{"name":"Laptop-001","asset_tag":"A001","model_id":1,"status_id":2}`,
+	)
+	require.NoError(t, err)
 	assert.JSONEq(t, `{"name":"Laptop-001","asset_tag":"A001","model_id":1,"status_id":2}`, string(capturedBody))
-	// payload が取り出されている
-	assert.Contains(t, buf.String(), `"id": 1`)
-	assert.NotContains(t, buf.String(), "status")
+	assert.Contains(t, out, `"id": 1`)
+	assert.NotContains(t, out, "status")
 }
 
-func TestRunCreate_InvalidJSON_ReturnsError(t *testing.T) {
-	// 不正 JSON は HTTP リクエストを送らずエラーを返す
-	client, _ := snipeit.NewClient("http://127.0.0.1:1", "test-token", 1)
-	var buf bytes.Buffer
-	o := &genericCreateOptions{
-		BaseOptions: newResourceBaseOptions(client, &buf),
-		apiPath:     "hardware",
-		data:        `{not valid}`,
-	}
-
-	err := o.runCreate(context.Background())
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse JSON")
-}
-
-// --- runUpdate ---
-
-func TestRunUpdate_SendsPatchRequest(t *testing.T) {
+func TestResourceUpdateCommand_SendsPatchRequest(t *testing.T) {
 	var (
 		capturedMethod string
 		capturedPath   string
 		capturedBody   []byte
 	)
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedMethod = r.Method
 		capturedPath = r.URL.Path
-		capturedBody, _ = io.ReadAll(r.Body)
+		body, err := ioReadAll(r)
+		require.NoError(t, err)
+		capturedBody = body
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"status":"success","payload":{"id":42,"status_id":3}}`)
-	})
+		_, err = w.Write([]byte(`{"status":"success","payload":{"id":42,"status_id":3}}`))
+		require.NoError(t, err)
+	}))
 
-	var buf bytes.Buffer
-	o := &genericUpdateOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		id:          42,
-		data:        `{"status_id":3}`,
-	}
-
-	require.NoError(t, o.runUpdate(context.Background()))
+	_, err := executeResourceCommand(
+		t,
+		newTestResourceDef().BuildCmd(),
+		srv.URL,
+		"update",
+		"--id",
+		"42",
+		"--data",
+		`{"status_id":3}`,
+	)
+	require.NoError(t, err)
 	assert.Equal(t, http.MethodPatch, capturedMethod)
 	assert.Equal(t, "/api/v1/hardware/42", capturedPath)
 	assert.JSONEq(t, `{"status_id":3}`, string(capturedBody))
 }
 
-// --- runDelete ---
+func TestResourceDeleteCommand_WithoutYesDoesNotCallAPI(t *testing.T) {
+	var calls atomic.Int32
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
 
-func TestRunDelete_WithoutYes_ReturnsError(t *testing.T) {
-	// --yes なしは削除しない（HTTP リクエストを送らない）
-	client, _ := snipeit.NewClient("http://127.0.0.1:1", "test-token", 1)
-	var buf bytes.Buffer
-	o := &genericDeleteOptions{
-		BaseOptions: newResourceBaseOptions(client, &buf),
-		apiPath:     "hardware",
-		id:          1,
-		yes:         false,
-	}
-
-	err := o.runDelete(context.Background())
-	assert.Error(t, err)
+	_, err := executeResourceCommand(t, newTestResourceDef().BuildCmd(), srv.URL, "delete", "--id", "1")
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--yes")
+	assert.Zero(t, calls.Load())
 }
 
-func TestRunDelete_WithYes_CallsAPIAndOutputs(t *testing.T) {
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+func TestResourceDeleteCommand_WithYesCallsAPIAndOutputs(t *testing.T) {
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodDelete, r.Method)
 		assert.Equal(t, "/api/v1/hardware/5", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-	})
+	}))
 
-	var buf bytes.Buffer
-	o := &genericDeleteOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		id:          5,
-		yes:         true,
-	}
-
-	require.NoError(t, o.runDelete(context.Background()))
-	assert.Contains(t, buf.String(), `"deleted": true`)
-	assert.Contains(t, buf.String(), `"id": 5`)
+	out, err := executeResourceCommand(t, newTestResourceDef().BuildCmd(), srv.URL, "delete", "--id", "5", "--yes")
+	require.NoError(t, err)
+	assert.Contains(t, out, `"deleted": true`)
+	assert.Contains(t, out, `"id": 5`)
 }
 
-// --- runAction (checkout/checkin) ---
+func TestResourceActionCommand_CheckoutSendsPostWithData(t *testing.T) {
+	var (
+		capturedPath string
+		capturedBody []byte
+	)
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		assert.Equal(t, http.MethodPost, r.Method)
+		body, err := ioReadAll(r)
+		require.NoError(t, err)
+		capturedBody = body
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write([]byte(`{"status":"success","payload":{"id":1}}`))
+		require.NoError(t, err)
+	}))
 
-func TestRunAction_Checkout_SendsPostWithData(t *testing.T) {
+	_, err := executeResourceCommand(
+		t,
+		newTestResourceDef().BuildCmd(),
+		srv.URL,
+		"checkout",
+		"--id",
+		"1",
+		"--data",
+		`{"checkout_to_type":"user","assigned_user":5}`,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "/api/v1/hardware/1/checkout", capturedPath)
+	assert.JSONEq(t, `{"checkout_to_type":"user","assigned_user":5}`, string(capturedBody))
+}
+
+func TestResourceActionCommand_CheckinSendsPostWithoutData(t *testing.T) {
 	var capturedPath string
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.StartLoopbackServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedPath = r.URL.Path
 		assert.Equal(t, http.MethodPost, r.Method)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"status":"success","payload":{"id":1}}`)
-	})
+		_, err := w.Write([]byte(`{"status":"success","payload":{"id":1}}`))
+		require.NoError(t, err)
+	}))
 
-	var buf bytes.Buffer
-	o := &genericActionOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		action:      "checkout",
-		id:          1,
-		data:        `{"checkout_to_type":"user","assigned_user":5}`,
-	}
-
-	require.NoError(t, o.runAction(context.Background()))
-	assert.Equal(t, "/api/v1/hardware/1/checkout", capturedPath)
-}
-
-func TestRunAction_Checkin_SendsPostWithoutData(t *testing.T) {
-	var capturedPath string
-	srv := startResourceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		capturedPath = r.URL.Path
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"status":"success","payload":{"id":1}}`)
-	})
-
-	var buf bytes.Buffer
-	o := &genericActionOptions{
-		BaseOptions: newResourceBaseOptions(newResourceTestClient(t, srv), &buf),
-		apiPath:     "hardware",
-		action:      "checkin",
-		id:          1,
-		data:        "", // checkin にはデータ不要
-	}
-
-	require.NoError(t, o.runAction(context.Background()))
+	_, err := executeResourceCommand(t, newTestResourceDef().BuildCmd(), srv.URL, "checkin", "--id", "1")
+	require.NoError(t, err)
 	assert.Equal(t, "/api/v1/hardware/1/checkin", capturedPath)
 }
 
-// --- BuildCmd (ResourceDef) ---
-
 func TestBuildCmd_HasExpectedSubcommands(t *testing.T) {
-	def := &ResourceDef{
-		Use:     "assets",
-		Short:   "IT 資産を管理する",
-		APIPath: "hardware",
-	}
-
-	cmd := def.BuildCmd()
+	cmd := newTestResourceDef().BuildCmd()
 	assert.Equal(t, "assets", cmd.Use)
 
 	subCmds := make(map[string]bool)
@@ -322,17 +243,8 @@ func TestBuildCmd_HasExpectedSubcommands(t *testing.T) {
 }
 
 func TestBuildCmd_WithActionFns(t *testing.T) {
-	def := &ResourceDef{
-		Use:     "assets",
-		Short:   "IT 資産を管理する",
-		APIPath: "hardware",
-		ActionFns: []ActionDef{
-			{Use: "checkout", Short: "チェックアウト", Action: "checkout", NeedsData: true},
-			{Use: "checkin", Short: "チェックイン", Action: "checkin", NeedsData: false},
-		},
-	}
+	cmd := newTestResourceDef().BuildCmd()
 
-	cmd := def.BuildCmd()
 	subCmds := make(map[string]bool)
 	for _, sub := range cmd.Commands() {
 		subCmds[sub.Use] = true
@@ -340,4 +252,29 @@ func TestBuildCmd_WithActionFns(t *testing.T) {
 
 	assert.True(t, subCmds["checkout"])
 	assert.True(t, subCmds["checkin"])
+}
+
+func TestBuildCmd_ExcludeSubCmds(t *testing.T) {
+	cmd := (&run.ResourceDef{
+		Use:            "imports",
+		Short:          "imports",
+		APIPath:        "imports",
+		ExcludeSubCmds: []string{"create"},
+	}).BuildCmd()
+
+	subCmds := make(map[string]bool)
+	for _, sub := range cmd.Commands() {
+		subCmds[sub.Use] = true
+	}
+
+	assert.False(t, subCmds["create"])
+	assert.True(t, subCmds["list"])
+	assert.True(t, subCmds["get"])
+	assert.True(t, subCmds["update"])
+	assert.True(t, subCmds["delete"])
+}
+
+func ioReadAll(r *http.Request) ([]byte, error) {
+	defer r.Body.Close() //nolint:errcheck
+	return io.ReadAll(r.Body)
 }

@@ -53,51 +53,62 @@ func buildSeatsCmd() *cobra.Command {
 	return seats
 }
 
+type seatGetOptions struct {
+	run.BaseOptions
+	licenseID int
+	seatID    int
+}
+
 func buildSeatGetCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var licenseID, seatID int
+	o := &seatGetOptions{}
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "ライセンスシートを ID で取得する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequireAll(
-					run.RequirePositiveInt("--id", licenseID),
-					run.RequirePositiveInt("--seat-id", seatID),
+					run.RequirePositiveInt("--id", o.licenseID),
+					run.RequirePositiveInt("--seat-id", o.seatID),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunGetByPath(ctx, o, fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID))
+				return run.RunGetBySegments(ctx, &o.BaseOptions, "licenses", fmt.Sprintf("%d", o.licenseID), "seats", fmt.Sprintf("%d", o.seatID))
 			})
 		},
 	}
-	cmd.Flags().IntVar(&licenseID, "id", 0, "License ID (required)")
-	cmd.Flags().IntVar(&seatID, "seat-id", 0, "Seat ID (required)")
+	cmd.Flags().IntVar(&o.licenseID, "id", 0, "License ID (required)")
+	cmd.Flags().IntVar(&o.seatID, "seat-id", 0, "Seat ID (required)")
 	cmd.MarkFlagRequired("id")      //nolint:errcheck
 	cmd.MarkFlagRequired("seat-id") //nolint:errcheck
 	return cmd
 }
 
+type seatUpdateOptions struct {
+	run.BaseOptions
+	licenseID int
+	seatID    int
+	data      string
+}
+
 func buildSeatUpdateCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var licenseID, seatID int
-	var data string
+	o := &seatUpdateOptions{}
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "ライセンスシートを更新する（PATCH）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequireAll(
-					run.RequirePositiveInt("--id", licenseID),
-					run.RequirePositiveInt("--seat-id", seatID),
+					run.RequirePositiveInt("--id", o.licenseID),
+					run.RequirePositiveInt("--seat-id", o.seatID),
+					run.RequireValidJSON("--data", o.data),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunPatchByPath(ctx, o, fmt.Sprintf("licenses/%d/seats/%d", licenseID, seatID), data)
+				return run.RunPatchBySegments(ctx, &o.BaseOptions, o.data, "licenses", fmt.Sprintf("%d", o.licenseID), "seats", fmt.Sprintf("%d", o.seatID))
 			})
 		},
 	}
-	cmd.Flags().IntVar(&licenseID, "id", 0, "License ID (required)")
-	cmd.Flags().IntVar(&seatID, "seat-id", 0, "Seat ID (required)")
-	cmd.Flags().StringVar(&data, "data", "", "JSON data for fields to update (required)")
+	cmd.Flags().IntVar(&o.licenseID, "id", 0, "License ID (required)")
+	cmd.Flags().IntVar(&o.seatID, "seat-id", 0, "Seat ID (required)")
+	cmd.Flags().StringVar(&o.data, "data", "", "JSON data for fields to update (required)")
 	cmd.MarkFlagRequired("id")      //nolint:errcheck
 	cmd.MarkFlagRequired("seat-id") //nolint:errcheck
 	cmd.MarkFlagRequired("data")    //nolint:errcheck

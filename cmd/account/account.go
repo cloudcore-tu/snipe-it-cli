@@ -52,76 +52,94 @@ func NewCmd() *cobra.Command {
 	return cmd
 }
 
+type requestOptions struct {
+	run.BaseOptions
+	id int
+}
+
 func buildRequestCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var id int
+	o := &requestOptions{}
 	cmd := &cobra.Command{
 		Use:   "request",
 		Short: "資産のリクエストを送信する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequirePositiveInt("--id", id)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequirePositiveInt("--id", o.id)
 			}, func(ctx context.Context) error {
-				return run.RunPostByPath(ctx, o, "account/request/"+strconv.Itoa(id), nil)
+				return run.RunPostBySegments(ctx, &o.BaseOptions, nil, "account", "request", strconv.Itoa(o.id))
 			})
 		},
 	}
-	cmd.Flags().IntVar(&id, "id", 0, "Asset ID to request (required)")
+	cmd.Flags().IntVar(&o.id, "id", 0, "Asset ID to request (required)")
 	cmd.MarkFlagRequired("id") //nolint:errcheck
 	return cmd
 }
 
+type cancelRequestOptions struct {
+	run.BaseOptions
+	id int
+}
+
 func buildCancelRequestCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var id int
+	o := &cancelRequestOptions{}
 	cmd := &cobra.Command{
 		Use:   "cancel-request",
 		Short: "資産リクエストをキャンセルする",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequirePositiveInt("--id", id)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequirePositiveInt("--id", o.id)
 			}, func(ctx context.Context) error {
-				return run.RunPostByPath(ctx, o, "account/request/"+strconv.Itoa(id)+"/cancel", nil)
+				return run.RunPostBySegments(ctx, &o.BaseOptions, nil, "account", "request", strconv.Itoa(o.id), "cancel")
 			})
 		},
 	}
-	cmd.Flags().IntVar(&id, "id", 0, "Asset ID to cancel request for (required)")
+	cmd.Flags().IntVar(&o.id, "id", 0, "Asset ID to cancel request for (required)")
 	cmd.MarkFlagRequired("id") //nolint:errcheck
 	return cmd
 }
 
+type tokenCreateOptions struct {
+	run.BaseOptions
+	data string
+}
+
 func buildTokenCreateCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var data string
+	o := &tokenCreateOptions{}
 	cmd := &cobra.Command{
 		Use:   "token-create",
 		Short: "API トークンを作成する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
-				return run.RunPostJSONByPath(ctx, o, "account/personal-access-tokens", data)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequireValidJSON("--data", o.data)
+			}, func(ctx context.Context) error {
+				return run.RunPostJSONByPath(ctx, &o.BaseOptions, "account/personal-access-tokens", o.data)
 			})
 		},
 	}
-	cmd.Flags().StringVar(&data, "data", "", `JSON data, e.g. {"name":"my-token"} (required)`)
+	cmd.Flags().StringVar(&o.data, "data", "", `JSON data, e.g. {"name":"my-token"} (required)`)
 	cmd.MarkFlagRequired("data") //nolint:errcheck
 	return cmd
 }
 
+type tokenDeleteOptions struct {
+	run.BaseOptions
+	tokenID int
+}
+
 func buildTokenDeleteCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var tokenID int
+	o := &tokenDeleteOptions{}
 	cmd := &cobra.Command{
 		Use:   "token-delete",
 		Short: "API トークンを削除する",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, func() error {
-				return run.RequirePositiveInt("--token-id", tokenID)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequirePositiveInt("--token-id", o.tokenID)
 			}, func(ctx context.Context) error {
-				return run.RunDeleteByPath(ctx, o, "account/personal-access-tokens/"+strconv.Itoa(tokenID), tokenID)
+				return run.RunDeleteBySegments(ctx, &o.BaseOptions, "account", "personal-access-tokens", strconv.Itoa(o.tokenID))
 			})
 		},
 	}
-	cmd.Flags().IntVar(&tokenID, "token-id", 0, "Token ID to delete (required)")
+	cmd.Flags().IntVar(&o.tokenID, "token-id", 0, "Token ID to delete (required)")
 	cmd.MarkFlagRequired("token-id") //nolint:errcheck
 	return cmd
 }

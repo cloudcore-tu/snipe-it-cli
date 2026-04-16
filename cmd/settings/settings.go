@@ -37,41 +37,51 @@ func NewCmd() *cobra.Command {
 	return cmd
 }
 
+type updateOptions struct {
+	run.BaseOptions
+	data string
+}
+
 func buildUpdateCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var data string
+	o := &updateOptions{}
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "設定を更新する（POST /api/v1/settings）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
-				return run.RunPostJSONByPath(ctx, o, "settings", data)
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
+				return run.RequireValidJSON("--data", o.data)
+			}, func(ctx context.Context) error {
+				return run.RunPostJSONByPath(ctx, &o.BaseOptions, "settings", o.data)
 			})
 		},
 	}
-	cmd.Flags().StringVar(&data, "data", "", "JSON data for settings fields to update (required)")
+	cmd.Flags().StringVar(&o.data, "data", "", "JSON data for settings fields to update (required)")
 	cmd.MarkFlagRequired("data") //nolint:errcheck
 	return cmd
 }
 
+type backupDownloadOptions struct {
+	run.BaseOptions
+	name       string
+	outputFile string
+}
+
 // buildBackupDownloadCmd は最新バックアップまたは指定バックアップをダウンロードする。
 func buildBackupDownloadCmd() *cobra.Command {
-	o := &run.BaseOptions{}
-	var name, outputFile string
+	o := &backupDownloadOptions{}
 	cmd := &cobra.Command{
 		Use:   "backup-download",
 		Short: "バックアップをダウンロードする（省略時は最新）",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run.CompleteValidateRun(cmd, o, nil, func(ctx context.Context) error {
-				apiPath := "settings/backups/download/latest"
-				if name != "" {
-					apiPath = "settings/backups/download/" + name
+			return run.CompleteValidateRun(cmd, &o.BaseOptions, nil, func(ctx context.Context) error {
+				if o.name != "" {
+					return run.RunSaveBinaryBySegments(ctx, &o.BaseOptions, o.outputFile, "settings", "backups", "download", o.name)
 				}
-				return run.RunSaveBinary(ctx, o, apiPath, outputFile)
+				return run.RunSaveBinaryBySegments(ctx, &o.BaseOptions, o.outputFile, "settings", "backups", "download", "latest")
 			})
 		},
 	}
-	cmd.Flags().StringVar(&name, "name", "", "Backup file name (default: latest)")
-	cmd.Flags().StringVar(&outputFile, "output-file", "", "Save to file (default: stdout)")
+	cmd.Flags().StringVar(&o.name, "name", "", "Backup file name (default: latest)")
+	cmd.Flags().StringVar(&o.outputFile, "output-file", "", "Save to file (default: stdout)")
 	return cmd
 }

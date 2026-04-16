@@ -47,36 +47,78 @@ type Config struct {
 	Output  string
 }
 
+// ResolveProfile はアクティブインスタンス名を解決する。
+// profile フラグ > SNIPE_PROFILE 環境変数 > fc.Current の優先順位で決定する。
+// fc が nil の場合は環境変数と profile のみを参照する。
+func ResolveProfile(fc *FileConfig, profile string) string {
+	if profile != "" {
+		return profile
+	}
+	if v := os.Getenv("SNIPE_PROFILE"); v != "" {
+		return v
+	}
+	if fc != nil {
+		return fc.Current
+	}
+	return ""
+}
+
+// InitFile は設定ファイルを新規作成する。
+// すでに存在する場合はエラーを返す（上書き禁止）。
+// 成功時は書き込まれたファイルのパスを返す。
+func InitFile(fc *FileConfig) (string, error) {
+	path, err := ConfigFilePath()
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(path); err == nil {
+		return "", fmt.Errorf("config file already exists: %s (use 'snip config add' to add an instance)", path)
+	}
+	if err := WriteFile(fc); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// UpsertInstance は設定ファイルのインスタンスを追加または更新する。
+// ファイルが存在しない場合は新規作成する。
+// current が未設定のときは name を current に設定する。
+func UpsertInstance(name string, inst Instance) error {
+	fc, err := ReadFile()
+	if err != nil {
+		return err
+	}
+	if fc == nil {
+		fc = &FileConfig{
+			Current:   name,
+			Instances: make(map[string]Instance),
+		}
+	}
+	if fc.Instances == nil {
+		fc.Instances = make(map[string]Instance)
+	}
+	fc.Instances[name] = inst
+	// current が未設定の場合は最初に追加したインスタンスをデフォルトにする
+	if fc.Current == "" {
+		fc.Current = name
+	}
+	return WriteFile(fc)
+}
+
 // Load は設定ファイル・環境変数から設定を読み込んで返す。
 // profile が空の場合は設定ファイルの current インスタンスを使う。
+// 優先順位: CLI フラグ（呼び出し元が適用） > 環境変数 > 設定ファイル > デフォルト値
+// 副作用なし。パーミッション警告が必要な場合は呼び出し元で WarnInsecurePermissions を呼ぶ。
 func Load(profile string) (*Config, error) {
-	cfg := &Config{
-		Timeout: DefaultTimeout,
-		Output:  DefaultOutput,
-	}
+	cfg := &Config{Timeout: DefaultTimeout, Output: DefaultOutput}
 
-	// 設定ファイルを読み込む（存在しない場合はスキップ）
 	fc, err := ReadFile()
 	if err != nil {
 		return nil, err
 	}
 	if fc != nil {
-		if fc.Timeout > 0 {
-			cfg.Timeout = fc.Timeout
-		}
-		if fc.Output != "" {
-			cfg.Output = fc.Output
-		}
-
-		// アクティブなインスタンスを解決:
-		// --profile フラグ > SNIPE_PROFILE 環境変数 > 設定ファイルの current
-		name := profile
-		if name == "" {
-			name = os.Getenv("SNIPE_PROFILE")
-		}
-		if name == "" {
-			name = fc.Current
-		}
+		applyFileConfig(cfg, fc)
+		name := ResolveProfile(fc, profile)
 		if name != "" {
 			inst, ok := fc.Instances[name]
 			if !ok {
@@ -87,7 +129,39 @@ func Load(profile string) (*Config, error) {
 		}
 	}
 
-	// 環境変数で上書き（設定ファイルより優先）
+	return cfg, applyEnvOverrides(cfg)
+}
+
+// applyFileConfig はファイル設定値を cfg に適用する。ゼロ値はデフォルトを上書きしない。
+func applyFileConfig(cfg *Config, fc *FileConfig) {
+	if fc.Timeout > 0 {
+		cfg.Timeout = fc.Timeout
+	}
+	if fc.Output != "" {
+		cfg.Output = fc.Output
+	}
+}
+
+// WarnInsecurePermissions は設定ファイルのパーミッションを検査して警告する。
+// 0600 以外の場合、API トークンを第三者が読める可能性があるため slog.Warn を出力する。
+// 副作用（ログ出力）を持つため、CLI 境界（BaseOptions.Complete 等）から呼ぶ。
+func WarnInsecurePermissions() {
+	path, err := ConfigFilePath()
+	if err != nil {
+		return
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		slog.Warn("config file has insecure permissions; recommend chmod 0600",
+			"path", path, "permissions", fmt.Sprintf("%04o", perm))
+	}
+}
+
+// applyEnvOverrides は SNIPEIT_* 環境変数で cfg を上書きする。設定ファイルより優先される。
+func applyEnvOverrides(cfg *Config) error {
 	if v := os.Getenv("SNIPEIT_URL"); v != "" {
 		cfg.URL = v
 	}
@@ -97,19 +171,19 @@ func Load(profile string) (*Config, error) {
 	if v := os.Getenv("SNIPEIT_TIMEOUT"); v != "" {
 		t, err := strconv.Atoi(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid SNIPEIT_TIMEOUT value (must be an integer): %w", err)
+			return fmt.Errorf("invalid SNIPEIT_TIMEOUT value (must be an integer): %w", err)
 		}
 		cfg.Timeout = t
 	}
 	if v := os.Getenv("SNIPEIT_OUTPUT"); v != "" {
 		cfg.Output = v
 	}
-
-	return cfg, nil
+	return nil
 }
 
 // ReadFile は設定ファイルを読み込んで FileConfig を返す。
 // ファイルが存在しない場合は nil を返す（エラーではない）。
+// セキュリティ検査（パーミッション確認）は Load() 内の checkConfigPermissions() が担う。
 func ReadFile() (*FileConfig, error) {
 	path, err := ConfigFilePath()
 	if err != nil {
@@ -122,15 +196,6 @@ func ReadFile() (*FileConfig, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	// セキュリティ: 設定ファイルには API トークンが含まれる。
-	// 0600 以外のパーミッションは他のユーザーがトークンを読める可能性があるため警告する。
-	if info, statErr := os.Stat(path); statErr == nil {
-		if perm := info.Mode().Perm(); perm != 0o600 {
-			slog.Warn("config file has insecure permissions; recommend chmod 0600",
-				"path", path, "permissions", fmt.Sprintf("%04o", perm))
-		}
 	}
 
 	var fc FileConfig
