@@ -82,7 +82,7 @@ func RequireNonEmpty(flagName, value string) error {
 func RequireValidJSON(flagName, data string) error {
 	return RequireAll(
 		RequireNonEmpty(flagName, data),
-		ValidateJSON(data),
+		CheckJSONSyntax(data),
 	)
 }
 
@@ -91,7 +91,7 @@ func ValidateOptionalJSON(data string) error {
 	if strings.TrimSpace(data) == "" {
 		return nil
 	}
-	return ValidateJSON(data)
+	return CheckJSONSyntax(data)
 }
 
 // RequireFileExists はファイルパスが空でなく、既存の通常ファイルを指すことを保証する。

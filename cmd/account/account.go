@@ -66,7 +66,7 @@ func buildRequestCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequirePositiveInt("--id", o.id)
 			}, func(ctx context.Context) error {
-				return run.RunPostBySegments(ctx, &o.BaseOptions, nil, "account", "request", strconv.Itoa(o.id))
+				return run.PostBySegmentsAndPrint(ctx, &o.BaseOptions, nil, "account", "request", strconv.Itoa(o.id))
 			})
 		},
 	}
@@ -89,7 +89,7 @@ func buildCancelRequestCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequirePositiveInt("--id", o.id)
 			}, func(ctx context.Context) error {
-				return run.RunPostBySegments(ctx, &o.BaseOptions, nil, "account", "request", strconv.Itoa(o.id), "cancel")
+				return run.PostBySegmentsAndPrint(ctx, &o.BaseOptions, nil, "account", "request", strconv.Itoa(o.id), "cancel")
 			})
 		},
 	}
@@ -112,7 +112,7 @@ func buildTokenCreateCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequireValidJSON("--data", o.data)
 			}, func(ctx context.Context) error {
-				return run.RunPostJSONByPath(ctx, &o.BaseOptions, "account/personal-access-tokens", o.data)
+				return run.PostJSONAndPrint(ctx, &o.BaseOptions, "account/personal-access-tokens", o.data)
 			})
 		},
 	}
@@ -135,7 +135,7 @@ func buildTokenDeleteCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequirePositiveInt("--token-id", o.tokenID)
 			}, func(ctx context.Context) error {
-				return run.RunDeleteBySegments(ctx, &o.BaseOptions, "account", "personal-access-tokens", strconv.Itoa(o.tokenID))
+				return run.DeleteBySegmentsAndPrint(ctx, &o.BaseOptions, "account", "personal-access-tokens", strconv.Itoa(o.tokenID))
 			})
 		},
 	}

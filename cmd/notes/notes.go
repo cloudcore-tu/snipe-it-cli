@@ -38,7 +38,7 @@ func buildListCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequirePositiveInt("--asset-id", o.assetID)
 			}, func(ctx context.Context) error {
-				return run.RunGetBySegments(ctx, &o.BaseOptions, "notes", fmt.Sprintf("%d", o.assetID), "index")
+				return run.FetchBySegmentsAndPrint(ctx, &o.BaseOptions, "notes", fmt.Sprintf("%d", o.assetID), "index")
 			})
 		},
 	}
@@ -67,7 +67,7 @@ func buildCreateCmd() *cobra.Command {
 					run.RequireValidJSON("--data", o.data),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunPostJSONBySegments(ctx, &o.BaseOptions, o.data, "notes", fmt.Sprintf("%d", o.assetID), "store")
+				return run.PostJSONBySegmentsAndPrint(ctx, &o.BaseOptions, o.data, "notes", fmt.Sprintf("%d", o.assetID), "store")
 			})
 		},
 	}

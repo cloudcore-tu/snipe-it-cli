@@ -133,6 +133,7 @@ func Load(profile string) (*Config, error) {
 }
 
 // applyFileConfig はファイル設定値を cfg に適用する。ゼロ値はデフォルトを上書きしない。
+// 前提条件: fc は nil でないこと（呼び出し元で nil チェック済み）。
 func applyFileConfig(cfg *Config, fc *FileConfig) {
 	if fc.Timeout > 0 {
 		cfg.Timeout = fc.Timeout

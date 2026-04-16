@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRootOptionsApplyLogFlags(t *testing.T) {
+func TestRootOptionsResolveLogLevel(t *testing.T) {
 	testCases := []struct {
 		name     string
 		verbose  bool
@@ -25,7 +25,7 @@ func TestRootOptionsApplyLogFlags(t *testing.T) {
 			o.verbose = tc.verbose
 			o.debug = tc.debug
 
-			o.applyLogFlags()
+			o.resolveLogLevel()
 
 			assert.Equal(t, tc.expected, o.logLevel.Level())
 		})

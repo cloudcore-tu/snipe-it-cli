@@ -49,7 +49,7 @@ func buildCreateCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequireFileExists("--file", o.filePath)
 			}, func(ctx context.Context) error {
-				return run.RunUpload(ctx, &o.BaseOptions, "imports", "file_contents", o.filePath, map[string]string{"import_type": o.importType})
+				return run.UploadAndPrint(ctx, &o.BaseOptions, "imports", "file_contents", o.filePath, map[string]string{"import_type": o.importType})
 			})
 		},
 	}

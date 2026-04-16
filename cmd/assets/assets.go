@@ -74,7 +74,7 @@ func buildByTagCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequireNonEmpty("--tag", o.tag)
 			}, func(ctx context.Context) error {
-				return run.RunGetBySegments(ctx, &o.BaseOptions, "hardware", "bytag", o.tag)
+				return run.FetchBySegmentsAndPrint(ctx, &o.BaseOptions, "hardware", "bytag", o.tag)
 			})
 		},
 	}
@@ -98,7 +98,7 @@ func buildBySerialCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequireNonEmpty("--serial", o.serial)
 			}, func(ctx context.Context) error {
-				return run.RunGetBySegments(ctx, &o.BaseOptions, "hardware", "byserial", o.serial)
+				return run.FetchBySegmentsAndPrint(ctx, &o.BaseOptions, "hardware", "byserial", o.serial)
 			})
 		},
 	}

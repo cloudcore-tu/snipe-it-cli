@@ -154,44 +154,44 @@ func TestParseFilters_EmptyValue(t *testing.T) {
 	assert.Contains(t, err.Error(), "value must not be empty")
 }
 
-// --- UnmarshalJSON ---
+// --- ParseJSONObject ---
 
-func TestUnmarshalJSON_ValidObject(t *testing.T) {
-	v, err := run.UnmarshalJSON(`{"name":"Laptop","status_id":2}`)
+func TestParseJSONObject_ValidObject(t *testing.T) {
+	v, err := run.ParseJSONObject(`{"name":"Laptop","status_id":2}`)
 	require.NoError(t, err)
 	assert.Equal(t, "Laptop", v["name"])
 }
 
-func TestUnmarshalJSON_EmptyObject(t *testing.T) {
-	v, err := run.UnmarshalJSON(`{}`)
+func TestParseJSONObject_EmptyObject(t *testing.T) {
+	v, err := run.ParseJSONObject(`{}`)
 	require.NoError(t, err)
 	assert.Empty(t, v)
 }
 
-func TestUnmarshalJSON_InvalidJSON(t *testing.T) {
-	_, err := run.UnmarshalJSON(`{not valid json}`)
+func TestParseJSONObject_InvalidJSON(t *testing.T) {
+	_, err := run.ParseJSONObject(`{not valid json}`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JSON")
 }
 
-func TestUnmarshalJSON_Array(t *testing.T) {
+func TestParseJSONObject_Array(t *testing.T) {
 	// --data に配列を渡す場合は map 変換に失敗する
-	_, err := run.UnmarshalJSON(`[1,2,3]`)
+	_, err := run.ParseJSONObject(`[1,2,3]`)
 	assert.Error(t, err)
 }
 
-func TestValidateJSON_Array(t *testing.T) {
-	err := run.ValidateJSON(`[1,2,3]`)
+func TestCheckJSONSyntax_Array(t *testing.T) {
+	err := run.CheckJSONSyntax(`[1,2,3]`)
 	assert.NoError(t, err)
 }
 
-func TestJSONBytes_Invalid(t *testing.T) {
-	_, err := run.JSONBytes(`{not valid json}`)
+func TestParseJSONBytes_Invalid(t *testing.T) {
+	_, err := run.ParseJSONBytes(`{not valid json}`)
 	assert.Error(t, err)
 }
 
-func TestMarshalJSONData(t *testing.T) {
-	data, err := run.MarshalJSONData(map[string]int{"fieldset_id": 3})
+func TestEncodeJSON(t *testing.T) {
+	data, err := run.EncodeJSON(map[string]int{"fieldset_id": 3})
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"fieldset_id":3}`, string(data))
 }
