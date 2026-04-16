@@ -71,7 +71,7 @@ func buildSeatGetCmd() *cobra.Command {
 					run.RequirePositiveInt("--seat-id", o.seatID),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunGetBySegments(ctx, &o.BaseOptions, "licenses", fmt.Sprintf("%d", o.licenseID), "seats", fmt.Sprintf("%d", o.seatID))
+				return run.FetchBySegmentsAndPrint(ctx, &o.BaseOptions, "licenses", fmt.Sprintf("%d", o.licenseID), "seats", fmt.Sprintf("%d", o.seatID))
 			})
 		},
 	}
@@ -102,7 +102,7 @@ func buildSeatUpdateCmd() *cobra.Command {
 					run.RequireValidJSON("--data", o.data),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunPatchBySegments(ctx, &o.BaseOptions, o.data, "licenses", fmt.Sprintf("%d", o.licenseID), "seats", fmt.Sprintf("%d", o.seatID))
+				return run.PatchBySegmentsAndPrint(ctx, &o.BaseOptions, o.data, "licenses", fmt.Sprintf("%d", o.licenseID), "seats", fmt.Sprintf("%d", o.seatID))
 			})
 		},
 	}

@@ -51,7 +51,7 @@ func buildUpdateCmd() *cobra.Command {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, func() error {
 				return run.RequireValidJSON("--data", o.data)
 			}, func(ctx context.Context) error {
-				return run.RunPostJSONByPath(ctx, &o.BaseOptions, "settings", o.data)
+				return run.PostJSONAndPrint(ctx, &o.BaseOptions, "settings", o.data)
 			})
 		},
 	}
@@ -75,9 +75,9 @@ func buildBackupDownloadCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run.CompleteValidateRun(cmd, &o.BaseOptions, nil, func(ctx context.Context) error {
 				if o.name != "" {
-					return run.RunSaveBinaryBySegments(ctx, &o.BaseOptions, o.outputFile, "settings", "backups", "download", o.name)
+					return run.DownloadBySegmentsAndSave(ctx, &o.BaseOptions, o.outputFile, "settings", "backups", "download", o.name)
 				}
-				return run.RunSaveBinaryBySegments(ctx, &o.BaseOptions, o.outputFile, "settings", "backups", "download", "latest")
+				return run.DownloadBySegmentsAndSave(ctx, &o.BaseOptions, o.outputFile, "settings", "backups", "download", "latest")
 			})
 		},
 	}

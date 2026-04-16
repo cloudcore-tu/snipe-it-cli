@@ -53,7 +53,7 @@ func (o *rootOptions) installLogger() {
 	})))
 }
 
-func (o *rootOptions) applyLogFlags() {
+func (o *rootOptions) resolveLogLevel() {
 	o.logLevel.Set(slog.LevelWarn)
 	switch {
 	case o.debug:
@@ -126,7 +126,7 @@ Examples:
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			options.installLogger()
-			options.applyLogFlags()
+			options.resolveLogLevel()
 			return nil
 		},
 	}

@@ -48,7 +48,7 @@ func buildAssociateCmd() *cobra.Command {
 					run.RequirePositiveInt("--fieldset-id", o.fieldsetID),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunPostValueBySegments(ctx, &o.BaseOptions, map[string]int{"fieldset_id": o.fieldsetID}, "fields", fmt.Sprintf("%d", o.id), "associate")
+				return run.PostValueBySegmentsAndPrint(ctx, &o.BaseOptions, map[string]int{"fieldset_id": o.fieldsetID}, "fields", fmt.Sprintf("%d", o.id), "associate")
 			})
 		},
 	}
@@ -77,7 +77,7 @@ func buildDisassociateCmd() *cobra.Command {
 					run.RequirePositiveInt("--fieldset-id", o.fieldsetID),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunPostValueBySegments(ctx, &o.BaseOptions, map[string]int{"fieldset_id": o.fieldsetID}, "fields", fmt.Sprintf("%d", o.id), "disassociate")
+				return run.PostValueBySegmentsAndPrint(ctx, &o.BaseOptions, map[string]int{"fieldset_id": o.fieldsetID}, "fields", fmt.Sprintf("%d", o.id), "disassociate")
 			})
 		},
 	}
@@ -108,7 +108,7 @@ func buildReorderCmd() *cobra.Command {
 					run.RequireValidJSON("--data", o.data),
 				)
 			}, func(ctx context.Context) error {
-				return run.RunPostJSONBySegments(ctx, &o.BaseOptions, o.data, "fields", "fieldsets", fmt.Sprintf("%d", o.fieldsetID), "order")
+				return run.PostJSONBySegmentsAndPrint(ctx, &o.BaseOptions, o.data, "fields", "fieldsets", fmt.Sprintf("%d", o.fieldsetID), "order")
 			})
 		},
 	}

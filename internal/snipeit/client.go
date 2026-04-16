@@ -31,7 +31,10 @@ type Client struct {
 	token      string
 }
 
-type requestOptions struct {
+// apiRequestSpec は sendAPIRequest に渡す HTTP リクエストの仕様。
+// method, url は必須。okStatuses は許可する HTTP ステータスコードのリスト。
+// extractPayload が true の場合、レスポンスの Snipe-IT wrapper から payload を取り出す。
+type apiRequestSpec struct {
 	method         string
 	url            string
 	body           io.Reader
@@ -115,7 +118,10 @@ func (c *Client) apiURL(path string) string {
 	return c.baseURL + "/api/v1/" + path
 }
 
-func (c *Client) newRequest(ctx context.Context, opts requestOptions) (*http.Request, error) {
+// newRequest は HTTP リクエストを組み立てる。
+// Authorization: Bearer と Accept: application/json を自動設定する。
+// opts.contentType が非空の場合は Content-Type も設定する。
+func (c *Client) newRequest(ctx context.Context, opts apiRequestSpec) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, opts.method, opts.url, opts.body)
 	if err != nil {
 		return nil, err
@@ -143,10 +149,13 @@ func (c *Client) doRequest(req *http.Request) ([]byte, int, error) {
 	return respBody, resp.StatusCode, nil
 }
 
+// isAllowedStatus は HTTP ステータスが okStatuses に含まれるかを返す。
 func isAllowedStatus(status int, allowed []int) bool {
 	return slices.Contains(allowed, status)
 }
 
+// jsonContentType は body が nil なら空文字を、非 nil なら "application/json" を返す。
+// body が nil のとき Content-Type を送信しないことで、空ボディ POST の互換性を保つ。
 func jsonContentType(body io.Reader) string {
 	if body == nil {
 		return ""
@@ -154,7 +163,12 @@ func jsonContentType(body io.Reader) string {
 	return "application/json"
 }
 
-func (c *Client) doAPIRequest(ctx context.Context, opts requestOptions) ([]byte, error) {
+// sendAPIRequest は HTTP リクエストを送信し、ステータス判定と payload 抽出を行う。
+// 1. newRequest でリクエスト組み立て
+// 2. doRequest で送信
+// 3. okStatuses に含まれない場合は APIError を返す
+// 4. extractPayload が true の場合は Snipe-IT wrapper から payload を取り出す
+func (c *Client) sendAPIRequest(ctx context.Context, opts apiRequestSpec) ([]byte, error) {
 	req, err := c.newRequest(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -203,7 +217,7 @@ func (c *Client) List(ctx context.Context, path string, params ListParams) ([]by
 	}
 	u.RawQuery = q.Encode()
 
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:     http.MethodGet,
 		url:        u.String(),
 		okStatuses: []int{http.StatusOK},
@@ -214,7 +228,7 @@ func (c *Client) List(ctx context.Context, path string, params ListParams) ([]by
 func (c *Client) GetByID(ctx context.Context, path string, id int) ([]byte, error) {
 	slog.Info("getting resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:     http.MethodGet,
 		url:        urlStr,
 		okStatuses: []int{http.StatusOK},
@@ -225,7 +239,7 @@ func (c *Client) GetByID(ctx context.Context, path string, id int) ([]byte, erro
 // Snipe-IT のレスポンスは {"status": "success", "payload": {...}} のため、payload を取り出して返す。
 func (c *Client) Create(ctx context.Context, path string, data []byte) ([]byte, error) {
 	slog.Info("creating resource", "path", path)
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:         http.MethodPost,
 		url:            c.apiURL(path),
 		body:           bytes.NewReader(data),
@@ -240,7 +254,7 @@ func (c *Client) Create(ctx context.Context, path string, data []byte) ([]byte, 
 func (c *Client) Update(ctx context.Context, path string, id int, data []byte) ([]byte, error) {
 	slog.Info("updating resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:         http.MethodPatch,
 		url:            urlStr,
 		body:           bytes.NewReader(data),
@@ -254,7 +268,7 @@ func (c *Client) Update(ctx context.Context, path string, id int, data []byte) (
 func (c *Client) Delete(ctx context.Context, path string, id int) error {
 	slog.Info("deleting resource", "path", path, "id", id)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id)
-	_, err := c.doAPIRequest(ctx, requestOptions{
+	_, err := c.sendAPIRequest(ctx, apiRequestSpec{
 		method:     http.MethodDelete,
 		url:        urlStr,
 		okStatuses: []int{http.StatusOK, http.StatusNoContent},
@@ -267,7 +281,7 @@ func (c *Client) Delete(ctx context.Context, path string, id int) error {
 func (c *Client) GetSub(ctx context.Context, path string, id int, subPath string) ([]byte, error) {
 	slog.Info("getting sub-resource", "path", path, "id", id, "sub", subPath)
 	urlStr := c.apiURL(path) + "/" + strconv.Itoa(id) + "/" + subPath
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:     http.MethodGet,
 		url:        urlStr,
 		okStatuses: []int{http.StatusOK},
@@ -279,7 +293,7 @@ func (c *Client) GetSub(ctx context.Context, path string, id int, subPath string
 func (c *Client) GetByPath(ctx context.Context, urlPath string) ([]byte, error) {
 	slog.Info("getting by path", "path", urlPath)
 	urlStr := c.apiURL(urlPath)
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:     http.MethodGet,
 		url:        urlStr,
 		okStatuses: []int{http.StatusOK},
@@ -290,7 +304,7 @@ func (c *Client) GetByPath(ctx context.Context, urlPath string) ([]byte, error) 
 // ライセンスシート更新など、CRUD 汎用メソッドが対応しない入れ子パスに使用する。
 func (c *Client) PatchByPath(ctx context.Context, urlPath string, data []byte) ([]byte, error) {
 	slog.Info("patching by path", "path", urlPath)
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:         http.MethodPatch,
 		url:            c.apiURL(urlPath),
 		body:           bytes.NewReader(data),
@@ -308,7 +322,7 @@ func (c *Client) PostByPath(ctx context.Context, urlPath string, data []byte) ([
 	if data != nil {
 		bodyReader = bytes.NewReader(data)
 	}
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:         http.MethodPost,
 		url:            c.apiURL(urlPath),
 		body:           bodyReader,
@@ -322,7 +336,7 @@ func (c *Client) PostByPath(ctx context.Context, urlPath string, data []byte) ([
 // account/personal-access-tokens/{id} 等の非 CRUD DELETE に使用する。
 func (c *Client) DeleteByPath(ctx context.Context, urlPath string) error {
 	slog.Info("deleting by path", "path", urlPath)
-	_, err := c.doAPIRequest(ctx, requestOptions{
+	_, err := c.sendAPIRequest(ctx, apiRequestSpec{
 		method:     http.MethodDelete,
 		url:        c.apiURL(urlPath),
 		okStatuses: []int{http.StatusOK, http.StatusNoContent},
@@ -362,7 +376,7 @@ func (c *Client) Upload(ctx context.Context, urlPath, fieldName, filePath string
 	}
 	mw.Close() //nolint:errcheck
 
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:         http.MethodPost,
 		url:            c.apiURL(urlPath),
 		body:           &buf,
@@ -382,7 +396,7 @@ func (c *Client) PostAction(ctx context.Context, path string, id int, action str
 	if data != nil {
 		bodyReader = bytes.NewReader(data)
 	}
-	return c.doAPIRequest(ctx, requestOptions{
+	return c.sendAPIRequest(ctx, apiRequestSpec{
 		method:         http.MethodPost,
 		url:            urlStr,
 		body:           bodyReader,
@@ -395,6 +409,10 @@ func (c *Client) PostAction(ctx context.Context, path string, id int, action str
 // extractPayload は Snipe-IT の create/update/action レスポンスから payload を取り出す。
 // {"status": "success", "payload": {...}} → {...} の生 JSON を返す。
 // payload フィールドがない場合はレスポンス全体を返す。
+//
+// 失敗条件:
+//   - status が "error" → messages フィールドの内容を含む error を返す
+//   - JSON パース失敗 → body をそのまま返す（error なし。非 JSON レスポンスに対応）
 func extractPayload(body []byte) ([]byte, error) {
 	var wrapper struct {
 		Status   string          `json:"status"`

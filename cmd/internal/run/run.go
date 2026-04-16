@@ -18,33 +18,36 @@ import (
 
 // BaseOptions は全コマンドの Options 構造体が埋め込む共通フィールド。
 // kubectl の Options パターン（Complete → Validate → Run）を採用する。
+//
+// client と printFlags は Complete() で初期化される。
+// Complete() 呼び出し前にこれらを参照してはならない。
+// out はコマンド実行時に cmd.OutOrStdout() で解決される。
+// テスト時は cobra.Command.SetOut() で bytes.Buffer を注入する。
 type BaseOptions struct {
-	Client     *snipeit.Client
-	PrintFlags *output.PrintFlags
-	// Out は出力先。nil の場合は os.Stdout を使う。
-	// テスト時に bytes.Buffer を注入することでコマンド出力を検証できる。
-	Out io.Writer
+	client     *snipeit.Client
+	printFlags *output.PrintFlags
+	out        io.Writer
 }
 
-// Stdout は出力先を返す。Out が nil なら os.Stdout を返す。
+// Stdout は出力先を返す。out が nil なら os.Stdout を返す。
 func (o *BaseOptions) Stdout() io.Writer {
-	if o.Out != nil {
-		return o.Out
+	if o.out != nil {
+		return o.out
 	}
 	return os.Stdout
 }
 
-func (o *BaseOptions) printer() (*output.Printer, error) {
-	return o.PrintFlags.NewPrinter(o.Stdout())
+func (o *BaseOptions) newPrinter() (*output.Printer, error) {
+	return o.printFlags.NewPrinter(o.Stdout())
 }
 
 // PrintValue は初期化済みの出力設定で値を描画する。
 func (o *BaseOptions) PrintValue(v any) error {
-	printer, err := o.printer()
+	p, err := o.newPrinter()
 	if err != nil {
 		return err
 	}
-	return printer.Print(v)
+	return p.Print(v)
 }
 
 // PrintResponse は JSON レスポンスをデコードして出力する。
@@ -70,8 +73,8 @@ func (o *BaseOptions) Complete(cmd *cobra.Command) error {
 }
 
 func (o *BaseOptions) resolveOutput(cmd *cobra.Command) {
-	if o.Out == nil {
-		o.Out = cmd.OutOrStdout()
+	if o.out == nil {
+		o.out = cmd.OutOrStdout()
 	}
 }
 
@@ -86,14 +89,14 @@ func loadConfig(root *cobra.Command) (*config.Config, error) {
 	return cfg, nil
 }
 
-// initFromConfig は設定から PrintFlags と Client を初期化する。
+// initFromConfig は設定から printFlags と client を初期化する。
 func (o *BaseOptions) initFromConfig(cfg *config.Config) error {
-	o.PrintFlags = &output.PrintFlags{OutputFormat: cfg.Output}
-	client, err := snipeit.NewClient(cfg.URL, cfg.Token, cfg.Timeout)
+	o.printFlags = &output.PrintFlags{OutputFormat: cfg.Output}
+	c, err := snipeit.NewClient(cfg.URL, cfg.Token, cfg.Timeout)
 	if err != nil {
 		return err
 	}
-	o.Client = client
+	o.client = c
 	return nil
 }
 

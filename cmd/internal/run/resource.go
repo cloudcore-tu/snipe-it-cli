@@ -124,7 +124,7 @@ func (o *genericListOptions) runList(ctx context.Context) error {
 		return err
 	}
 
-	raw, err := o.Client.List(ctx, o.apiPath, snipeit.ListParams{
+	raw, err := o.client.List(ctx, o.apiPath, snipeit.ListParams{
 		Limit:   o.limit,
 		Offset:  o.offset,
 		Filters: filters,
@@ -163,7 +163,7 @@ func (r *ResourceDef) buildGetCmd() *cobra.Command {
 }
 
 func (o *genericGetOptions) runGet(ctx context.Context) error {
-	raw, err := o.Client.GetByID(ctx, o.apiPath, o.id)
+	raw, err := o.client.GetByID(ctx, o.apiPath, o.id)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (r *ResourceDef) buildCreateCmd() *cobra.Command {
 }
 
 func (o *genericCreateOptions) runCreate(ctx context.Context) error {
-	raw, err := o.Client.Create(ctx, o.apiPath, []byte(o.data))
+	raw, err := o.client.Create(ctx, o.apiPath, []byte(o.data))
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (r *ResourceDef) buildUpdateCmd() *cobra.Command {
 }
 
 func (o *genericUpdateOptions) runUpdate(ctx context.Context) error {
-	raw, err := o.Client.Update(ctx, o.apiPath, o.id, []byte(o.data))
+	raw, err := o.client.Update(ctx, o.apiPath, o.id, []byte(o.data))
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (r *ResourceDef) buildDeleteCmd() *cobra.Command {
 }
 
 func (o *genericDeleteOptions) runDelete(ctx context.Context) error {
-	if err := o.Client.Delete(ctx, o.apiPath, o.id); err != nil {
+	if err := o.client.Delete(ctx, o.apiPath, o.id); err != nil {
 		return err
 	}
 	return o.PrintValue(map[string]any{"deleted": true, "id": o.id})
@@ -332,7 +332,7 @@ func (o *genericActionOptions) runAction(ctx context.Context) error {
 		dataBytes = []byte(o.data)
 	}
 
-	raw, err := o.Client.PostAction(ctx, o.apiPath, o.id, o.action, dataBytes)
+	raw, err := o.client.PostAction(ctx, o.apiPath, o.id, o.action, dataBytes)
 	if err != nil {
 		return err
 	}
@@ -352,7 +352,7 @@ type subReadOptions struct {
 }
 
 func (o *subReadOptions) run(ctx context.Context) error {
-	raw, err := o.Client.GetSub(ctx, o.parentPath, o.id, o.subPath)
+	raw, err := o.client.GetSub(ctx, o.parentPath, o.id, o.subPath)
 	if err != nil {
 		return err
 	}
@@ -387,7 +387,7 @@ type pathReadOptions struct {
 }
 
 func (o *pathReadOptions) run(ctx context.Context) error {
-	raw, err := o.Client.GetByPath(ctx, o.urlPath)
+	raw, err := o.client.GetByPath(ctx, o.urlPath)
 	if err != nil {
 		return err
 	}
