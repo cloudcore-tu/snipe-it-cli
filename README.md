@@ -1,5 +1,9 @@
 # snipe-it-cli
 
+> **⚠️ このリポジトリは移行済み**
+> 新しい場所: [nttcom-internal/snipe-it-cli](https://github.com/nttcom-internal/snipe-it-cli)
+> Homebrew: `brew untap cloudcore-tu/homebrew-tap && brew tap nttcom-internal/opskit && brew reinstall snipe-it-cli`
+
 Snipe-IT（IT資産管理 OSS）を操作する Go 製 CLI ツール。コマンド名: `snip`。対応 Snipe-IT: v8.x
 
 | OS | アーキテクチャ |
